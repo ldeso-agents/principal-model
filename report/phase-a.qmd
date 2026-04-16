@@ -1,0 +1,11 @@
+---
+title: "Phase A — Research note"
+subtitle: "Mathematical framework, closed-form moments, risk-metric menu"
+shift-heading-level-by: 1
+format:
+  html:
+    toc: true
+    toc-depth: 3
+---
+
+{{< include ../research-note.md >}}

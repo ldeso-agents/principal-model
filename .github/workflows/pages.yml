@@ -55,6 +55,6 @@ jobs:
         uses: quarto-dev/quarto-actions/publish@8a96df13519ee81fd526f2dfca5962811136661b # v2.2.0
         with:
           target: gh-pages
-          path: report/report.qmd
+          path: report
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

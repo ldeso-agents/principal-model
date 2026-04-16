@@ -1,0 +1,48 @@
+---
+title: "Klima Protocol — Fee-Based vs. Principal Model"
+subtitle: "Revenue and risk for a carbon-retirement intermediary"
+format:
+  html:
+    toc: false
+    page-layout: article
+---
+
+A three-phase research programme that asks a single question: when a
+carbon-retirement intermediary sources tokens on the open market, should it
+charge a **fee** or quote a fixed **principal** price — and how much risk does
+each choice carry?
+
+## Phases
+
+::: {.grid}
+
+::: {.g-col-12 .g-col-md-6}
+### [Phase A — Research note](phase-a.qmd)
+
+Mathematical framework, closed-form moments of the integrated GBM, and a
+tail-risk metric menu for the fee model and the three principal variants
+(pre-buy, back-to-back, and generalised hedge ratio `α`).
+
+[Read the note →](phase-a.qmd)
+:::
+
+::: {.g-col-12 .g-col-md-6}
+### [Phase B — Interactive simulator](report.qmd)
+
+TypeScript Monte Carlo reproduction of the Phase A closed forms, with
+VaR / CVaR tail estimates and an Observable-powered notebook for exploring
+`(α, μ, σ, f, Q, T)`.
+
+[Open the simulator →](report.qmd)
+:::
+
+:::
+
+## Source
+
+- Research note: [`research-note.md`](https://github.com/ldeso-agents/principal-model/blob/main/research-note.md)
+- Simulator: [`src/`](https://github.com/ldeso-agents/principal-model/tree/main/src) (Node ≥ 20, TypeScript, vitest)
+- Reproducibility: seeded Mulberry32 PRNG; every figure in Phase B is regenerated from `report/data/*.json`.
+
+Phase C (jump-diffusion, Poisson demand, calibration, dynamic hedging) is out
+of scope for this site.
