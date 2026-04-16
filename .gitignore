@@ -4,6 +4,7 @@ dist/
 *.log
 .vitest-cache/
 report/data/*.json
+report/data/sim.worker.js
 !report/data/.gitkeep
 report/.quarto/
 report/_site/

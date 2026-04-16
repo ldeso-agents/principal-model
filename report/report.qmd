@@ -595,22 +595,20 @@ _Dashed black: 95th percentile of the shortfall distribution. Solid black:
 99th percentile. These are the natural stress thresholds for the matched
 book even though its terminal P&L is deterministic._
 
-## Parameter sweep
+## Parameter sweep (reference grid)
 
-The single-run view above fixes all parameters and looks at the
+The single-run view above fixes all parameters and looks at the full
 distribution. This section does the opposite: it **fixes the book**
 (principal 3c, the partially-hedged one) and a single risk summary
 ($\mathrm{CVaR}_{95}$), and then sweeps the business parameters $(\alpha, \mu, \sigma)$ to see
 how that risk summary responds.
 
-Loaded from `data/sweep.json` — a grid of Monte Carlo runs over
-$(\alpha, \mu, \sigma)$. Use the controls below to slice the grid. The plots below
-track $\mathrm{CVaR}_{95}$ for the **principal 3c** (partial pre-purchase) book.
-Reminder: **$\mathrm{CVaR}_{95}$ is the expected loss in the worst 5% of outcomes,
-so larger numbers are worse.** A reader can think of the two plots
-below as "how bad does the worst-5% outcome get, as I dial each knob?"
-
-All P&L sweep quantities are in USD over horizon $T$.
+The sweep is precomputed offline (`data/sweep.json` — 20k-path Monte
+Carlo per cell on a $5 \times 5 \times 4$ grid over $(\alpha, \mu, \sigma)$) and is the
+**authoritative reference grid** the report ships with. The next section
+("Live explorer") lets you drag continuous sliders and runs the simulator
+in the browser; this section shows what the committed, high-path grid
+says for a discrete slice.
 
 ```{ojs}
 //| echo: false
@@ -619,27 +617,20 @@ sweep = FileAttachment("data/sweep.json").json()
 
 ```{ojs}
 //| echo: false
-viewof pickAlpha = Inputs.range([0,1], { step: 0.25, value: 0.5, label: "hedge ratio α" })
+viewof pickAlpha = Inputs.range([0,1], { step: 0.25, value: 0.5, label: "hedge ratio α (grid)" })
 ```
 
 ```{ojs}
 //| echo: false
-viewof pickMu = Inputs.select(sweep.grid.mus, { value: 0.05, label: "drift μ (/yr)" })
+viewof pickMu = Inputs.select(sweep.grid.mus, { value: 0.05, label: "drift μ (/yr, grid)" })
 ```
 
-### Tail risk vs volatility $\sigma$ (fixed $\alpha, \mu$)
+### Tail risk vs volatility $\sigma$ at grid $(\alpha, \mu)$
 
-Holding $\alpha$ (the hedge ratio) and $\mu$ (the drift) fixed at the values
-chosen above, this line shows how the $\mathrm{CVaR}_{95}$ of the 3c book grows as
-we crank up $\sigma$ (volatility).
-
-**Intuition.** Volatility is the size of the random jitter in the token
-price. More jitter means the integral $I_T$ is more spread out, which
-means the principal book's P&L is more spread out, which means its
-left tail is fatter — so the average loss inside that tail is bigger.
-We therefore expect the curve below to be monotonically increasing
-(higher volatility → worse tail loss). That's a useful sanity check:
-if the line is non-monotone or flat, something is wrong upstream.
+Holding $\alpha$ and $\mu$ at the grid values chosen above, this line shows
+how the $\mathrm{CVaR}_{95}$ of the 3c book grows as $\sigma$ moves through the grid.
+Higher volatility inflates $\mathrm{Var}[I_T]$, so we expect the curve to rise
+monotonically.
 
 ```{ojs}
 //| echo: false
@@ -664,34 +655,11 @@ Plot.plot({
 })
 ```
 
-_Sensitivity of the 3c tail to $\sigma$ at the selected $(\alpha, \mu)$. A monotone rise
-is the expected signature — vol directly inflates $\mathrm{Var}[I_T]$ and hence the
-tail of $\Pi_\alpha$._
+### Tail risk vs hedge ratio $\alpha$ at grid $\mu$, mid-grid $\sigma$
 
-### Tail risk vs hedge ratio $\alpha$ (fixed $\mu$, $\sigma$ at grid[1])
-
-This is the plot that answers the business question "how much do I
-reduce my loss tail by pre-buying more tokens up front?"
-
-It fixes $\mu$ at the selected value and $\sigma$ at the **second** value in
-the grid (a middle-of-the-road volatility so the shape is easy to
-read), then sweeps $\alpha$ from 0 (fully back-to-back, no pre-buying) to 1
-(fully matched, entire year's supply bought today).
-
-Phase A §3c showed that $\mathrm{Var}[\Pi_\alpha] = (1-\alpha)^2 \cdot \mathrm{Var}[\Pi_{\mathrm{b2b}}]$. Since CVaR
-scales roughly with standard deviation in a broad family of
-distributions, the $\mathrm{CVaR}_{95}$ curve should collapse **quadratically**
-toward zero as $\alpha \to 1$. Visually: expect a smooth convex curve that
-bends down steeply, not a straight line. That's the signature of the
-$(1-\alpha)^2$ factor.
-
-At $\alpha = 1$ the book is fully pre-hedged and terminal P&L is
-deterministic; at that point the $\mathrm{CVaR}_{95}$ drops to the sign of the one
-deterministic P&L (a single value, not a tail).
-
-This plot is the visual answer to: *"Pre-buying tokens is the natural
-hedge for the back-to-back principal book."* The curve below is the
-dose-response curve for that hedge.
+Sweeps $\alpha$ at the selected $\mu$ and $\sigma = \sigma_{\text{grid}}[1]$. Phase A §3c
+predicts $\mathrm{Var}[\Pi_\alpha] = (1-\alpha)^2 \cdot \mathrm{Var}[\Pi_{\mathrm{b2b}}]$, so the
+$\mathrm{CVaR}_{95}$ curve should bend smoothly toward zero as $\alpha \to 1$.
 
 ```{ojs}
 //| echo: false
@@ -706,13 +674,375 @@ Plot.plot({
   marginLeft: 80,
   marginBottom: 55,
   grid: true,
-  caption: "Hedge ratio α vs tail risk. Fixed μ (selected above), σ = second grid value. At α = 1 the book is deterministic so CVaR95 collapses to the sign of the matched P&L.",
-  x: { label: "hedge ratio α   (0 = back-to-back, 1 = fully matched)", labelAnchor: "center", labelOffset: 36, domain: [0, 1] },
+  caption: "At α = 1 the book is deterministic so CVaR95 collapses to the sign of the matched P&L.",
+  x: { label: "hedge ratio α", labelAnchor: "center", labelOffset: 36, domain: [0, 1] },
   y: { label: "CVaR95 of Π (principal 3c)   (USD)", labelAnchor: "center", zero: true, tickFormat: "~s" },
   marks: [
     Plot.ruleY([0]),
     Plot.line(byAlpha, { x: "alpha", y: d => d.partial.cvar95, stroke: "#35a", strokeWidth: 2 }),
     Plot.dot(byAlpha, { x: "alpha", y: d => d.partial.cvar95, fill: "#35a", r: 4 })
+  ]
+})
+```
+
+## Live explorer
+
+The reference grid above only speaks at the values it was computed on.
+This section runs the same simulator **in your browser**, on a WebWorker,
+as you drag the sliders. Every plot here is recomputed per slider tick,
+and overlays the precomputed grid dots from the section above so you can
+see at a glance whether the live curve agrees with the reference.
+
+**How to read this section.**
+
+- **Solid lines / filled bars** are the live Monte Carlo: recomputed
+  on each slider change at the path/step budget shown in the quality
+  badge below. These are the numbers you are exploring.
+- **Hollow grey dots with thin vertical bars** on each sensitivity plot
+  are the committed reference grid from `sweep.json`, filtered to the
+  grid cells whose fixed-axis values are nearest to your current slider
+  positions. They're the "trust anchor": if the live curve passes through
+  the hollow dots, MC has converged to the grid's answer.
+- **Quality badge** below the sliders tells you the current path/step
+  budget, the 95% CI half-width on the principal-3c mean, and offers a
+  **Refine (100k)** button that reruns at the same high-path budget the
+  grid uses — slower (~1–3 s), but pixel-identical quality.
+
+The seed is locked to the current run's seed, so sliding a single knob
+produces smoothly-varying curves rather than MC noise flicker.
+
+```{ojs}
+//| echo: false
+//| output: false
+worker = {
+  const w = new Worker("data/sim.worker.js");
+  invalidation.then(() => w.terminate());
+  return w;
+}
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+runJob = (req) => new Promise((resolve, reject) => {
+  const id = Math.floor(Math.random() * 2 ** 53);
+  const handler = (ev) => {
+    if (!ev.data || ev.data.id !== id) return;
+    worker.removeEventListener("message", handler);
+    if (ev.data.type === "error") reject(new Error(ev.data.message));
+    else resolve(ev.data);
+  };
+  worker.addEventListener("message", handler);
+  worker.postMessage({ ...req, id });
+})
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+// Mirror of src/moments.ts::expm1OverX — used to compute Q* in-browser so
+// the Q/Q* slider can re-scale Q as μ and T move.
+expm1OverX = (x) => Math.abs(x) < 1e-8 ? 1 + x/2 + x*x/6 : Math.expm1(x) / x
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+liveDefaults = ({ S0: 1.0, P: 1.0, lambda: 1000, f: 0.05, seed: run.params.seed })
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+qstar = (mu, T) => (1 + liveDefaults.f) * liveDefaults.P * liveDefaults.S0 * expm1OverX(mu * T)
+```
+
+### Controls
+
+```{ojs}
+//| echo: false
+viewof liveAlpha = Inputs.range([0, 1],        { step: 0.01,  value: 0.5,  label: "α  (hedge ratio)" })
+```
+
+```{ojs}
+//| echo: false
+viewof liveMu = Inputs.range([-0.15, 0.25],    { step: 0.005, value: 0.05, label: "μ  (drift, /yr)" })
+```
+
+```{ojs}
+//| echo: false
+viewof liveSigma = Inputs.range([0.05, 1.5],   { step: 0.01,  value: 0.5,  label: "σ  (vol)" })
+```
+
+```{ojs}
+//| echo: false
+viewof liveT = Inputs.range([0.25, 3.0],       { step: 0.05,  value: 1.0,  label: "T  (horizon, yr)" })
+```
+
+```{ojs}
+//| echo: false
+viewof liveQRatio = Inputs.range([0.85, 1.15], { step: 0.005, value: 1.0,  label: "Q / Q*  (pricing)" })
+```
+
+```{ojs}
+//| echo: false
+viewof refine = Inputs.toggle({ label: "Refine (100k paths)", value: false })
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+livePaths = refine ? 100_000 : 20_000
+liveSteps = refine ? 250 : 100
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+// Debounce: wait 150 ms after the last slider change. Observable cancels
+// this cell's promise when any upstream input changes again, so we only
+// emit for the slider position the user actually stopped on.
+liveParams = {
+  await new Promise(r => setTimeout(r, 150));
+  return {
+    alpha: liveAlpha,
+    mu: liveMu,
+    sigma: liveSigma,
+    T: liveT,
+    Q: liveQRatio * qstar(liveMu, liveT),
+    nPaths: livePaths,
+    nSteps: liveSteps,
+    seed: liveDefaults.seed,
+  };
+}
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+liveReport = {
+  const res = await runJob({
+    type: "run",
+    params: liveParams,
+    opts: { keepPaths: 0, traceSize: 2500, histBins: 50 },
+  });
+  return res.report;
+}
+```
+
+```{ojs}
+//| echo: false
+html`<div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+  <div class="card"><div class="label">paths × steps</div><div class="value">${(liveReport.params.nPaths).toLocaleString()} × ${liveReport.params.nSteps}</div></div>
+  <div class="card"><div class="label">Q* (live)</div><div class="value">${qstar(liveMu, liveT).toFixed(4)}</div></div>
+  <div class="card"><div class="label">Q (live)</div><div class="value">${(liveQRatio * qstar(liveMu, liveT)).toFixed(4)}</div></div>
+  <div class="card"><div class="label">CI95 on E[Π₃c]</div><div class="value">±${liveReport.rows.find(r => r.name === "principal_3c").mcCi95.toFixed(2)}</div></div>
+  <div class="card"><div class="label">P[Π₃c < 0]</div><div class="value">${liveReport.rows.find(r => r.name === "principal_3c").probLoss.toFixed(3)}</div></div>
+  <div class="card"><div class="label">seed</div><div class="value">${liveReport.params.seed}</div></div>
+</div>`
+```
+
+### Live §4 scorecard
+
+Same columns as the reference scorecard up top, but computed live at
+the slider settings. If you freeze the sliders at the defaults and
+tick **Refine**, these rows should agree with the reference run's rows
+to CI95.
+
+```{ojs}
+//| echo: false
+Inputs.table(liveReport.rows, {
+  columns: ["name","closedFormMean","mcMean","mcCi95","closedFormSd","mcSd","zScore","var95","var99","cvar95","cvar99","probLoss","sharpe"],
+  header: {
+    name: "model",
+    closedFormMean: "E[Π] (cf)",
+    mcMean: "E[Π] (mc)",
+    mcCi95: "±CI95",
+    closedFormSd: "SD (cf)",
+    mcSd: "SD (mc)",
+    zScore: "z",
+    var95: "VaR95",
+    var99: "VaR99",
+    cvar95: "CVaR95",
+    cvar99: "CVaR99",
+    probLoss: "P[Π<0]",
+    sharpe: "Sharpe"
+  },
+  format: {
+    closedFormMean: x => x.toFixed(2),
+    mcMean: x => x.toFixed(2),
+    mcCi95: x => "±" + x.toFixed(2),
+    closedFormSd: x => x.toFixed(2),
+    mcSd: x => x.toFixed(2),
+    zScore: x => x.toFixed(2),
+    var95: x => x.toFixed(2),
+    var99: x => x.toFixed(2),
+    cvar95: x => x.toFixed(2),
+    cvar99: x => x.toFixed(2),
+    probLoss: x => x.toFixed(3),
+    sharpe: x => x === null ? "—" : x.toFixed(3)
+  }
+})
+```
+
+### Live P&L distributions
+
+```{ojs}
+//| echo: false
+//| output: false
+livePnlData = [
+  ...liveReport.sampleTraces.fee.map(v => ({model: "fee", pnl: v})),
+  ...liveReport.sampleTraces.b2b.map(v => ({model: "principal_3b", pnl: v})),
+  ...liveReport.sampleTraces.partial.map(v => ({model: "principal_3c", pnl: v}))
+]
+```
+
+```{ojs}
+//| echo: false
+Plot.plot({
+  width: 900,
+  height: 360,
+  marginLeft: 70,
+  marginRight: 30,
+  marginBottom: 50,
+  grid: true,
+  x: { label: "terminal P&L Π  (USD)", labelAnchor: "center", labelOffset: 36, tickFormat: "~s" },
+  y: { label: "empirical density", labelAnchor: "center" },
+  fy: { label: "model" },
+  color: { legend: true, domain: ["fee","principal_3b","principal_3c"], label: "model" },
+  marks: [
+    Plot.ruleY([0]),
+    Plot.ruleX([0], { stroke: "#888", strokeDasharray: "2 4" }),
+    Plot.rectY(livePnlData, Plot.binX({ y: "proportion" }, { x: "pnl", fill: "model", fy: "model", thresholds: 50 })),
+    Plot.ruleX(liveReport.rows.filter(r => ["fee","principal_3b","principal_3c"].includes(r.name)),
+      { x: "closedFormMean", fy: "name", stroke: "black", strokeWidth: 2 })
+  ]
+})
+```
+
+_Solid black rule: closed-form $\mathbb{E}[\Pi]$ at the live params. Dashed grey rule:
+break-even $\Pi = 0$._
+
+### Sensitivity: $\mathrm{CVaR}_{95}$ vs $\sigma$ (live)
+
+The solid line is the live MC, recomputed on each slider change. The
+hollow grey dots are the precomputed grid at the grid's nearest-$\alpha$ /
+nearest-$\mu$ slice to your current sliders — they should lie on or very
+near the line when the axes align.
+
+```{ojs}
+//| echo: false
+//| output: false
+nearest = (values, x) => values.reduce((best, v) =>
+  Math.abs(v - x) < Math.abs(best - x) ? v : best, values[0])
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+liveSweepSigma = {
+  await new Promise(r => setTimeout(r, 150));
+  const values = d3.range(0.1, 1.31, 0.06);
+  const res = await runJob({
+    type: "sweep1d",
+    axis: "sigma",
+    values,
+    params: {
+      alpha: liveAlpha, mu: liveMu, T: liveT,
+      Q: liveQRatio * qstar(liveMu, liveT),
+    },
+    pathsPerPoint: 12000,
+    stepsPerPoint: 60,
+  });
+  return res.points;
+}
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+gridDotsSigma = {
+  const gridAlpha = nearest(sweep.grid.alphas, liveAlpha);
+  const gridMu    = nearest(sweep.grid.mus,    liveMu);
+  return sweep.cells
+    .filter(c => c.alpha === gridAlpha && c.mu === gridMu)
+    .map(c => ({ sigma: c.sigma, cvar95: c.partial.cvar95,
+                 gridAlpha, gridMu }));
+}
+```
+
+```{ojs}
+//| echo: false
+Plot.plot({
+  width: 860,
+  height: 360,
+  marginLeft: 80,
+  marginBottom: 55,
+  grid: true,
+  caption: `Hollow grey dots: reference grid at α=${nearest(sweep.grid.alphas, liveAlpha)}, μ=${nearest(sweep.grid.mus, liveMu)}. Orange line: live MC at the slider values.`,
+  x: { label: "volatility σ   (annualised)", labelAnchor: "center", labelOffset: 36 },
+  y: { label: "CVaR95 of Π (principal 3c)   (USD)", labelAnchor: "center", zero: true, tickFormat: "~s" },
+  marks: [
+    Plot.ruleY([0]),
+    Plot.dot(gridDotsSigma, { x: "sigma", y: "cvar95", stroke: "#888", fill: "white", strokeWidth: 1.5, r: 5, symbol: "circle" }),
+    Plot.line(liveSweepSigma, { x: "x", y: "cvar95", stroke: "#c53", strokeWidth: 2 }),
+    Plot.ruleX([liveSigma], { stroke: "#c53", strokeDasharray: "2 3", strokeOpacity: 0.5 })
+  ]
+})
+```
+
+### Sensitivity: $\mathrm{CVaR}_{95}$ vs $\alpha$ (live)
+
+```{ojs}
+//| echo: false
+//| output: false
+liveSweepAlpha = {
+  await new Promise(r => setTimeout(r, 150));
+  const values = d3.range(0, 1.001, 0.05);
+  const res = await runJob({
+    type: "sweep1d",
+    axis: "alpha",
+    values,
+    params: {
+      mu: liveMu, sigma: liveSigma, T: liveT,
+      Q: liveQRatio * qstar(liveMu, liveT),
+    },
+    pathsPerPoint: 12000,
+    stepsPerPoint: 60,
+  });
+  return res.points;
+}
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+gridDotsAlpha = {
+  const gridMu    = nearest(sweep.grid.mus,    liveMu);
+  const gridSigma = nearest(sweep.grid.sigmas, liveSigma);
+  return sweep.cells
+    .filter(c => c.mu === gridMu && c.sigma === gridSigma)
+    .map(c => ({ alpha: c.alpha, cvar95: c.partial.cvar95,
+                 gridMu, gridSigma }));
+}
+```
+
+```{ojs}
+//| echo: false
+Plot.plot({
+  width: 860,
+  height: 360,
+  marginLeft: 80,
+  marginBottom: 55,
+  grid: true,
+  caption: `Hollow grey dots: reference grid at μ=${nearest(sweep.grid.mus, liveMu)}, σ=${nearest(sweep.grid.sigmas, liveSigma)}. Blue line: live MC at the slider values.`,
+  x: { label: "hedge ratio α", labelAnchor: "center", labelOffset: 36, domain: [0, 1] },
+  y: { label: "CVaR95 of Π (principal 3c)   (USD)", labelAnchor: "center", zero: true, tickFormat: "~s" },
+  marks: [
+    Plot.ruleY([0]),
+    Plot.dot(gridDotsAlpha, { x: "alpha", y: "cvar95", stroke: "#888", fill: "white", strokeWidth: 1.5, r: 5, symbol: "circle" }),
+    Plot.line(liveSweepAlpha, { x: "x", y: "cvar95", stroke: "#35a", strokeWidth: 2 }),
+    Plot.ruleX([liveAlpha], { stroke: "#35a", strokeDasharray: "2 3", strokeOpacity: 0.5 })
   ]
 })
 ```

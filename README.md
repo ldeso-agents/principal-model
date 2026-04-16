@@ -30,6 +30,9 @@ npm run simulate -- --seed 42
 # Parameter sweep for the Observable sliders
 npm run sweep -- --seed 42
 
+# Browser bundle of the simulator for the live-explorer section
+npm run bundle
+
 # Type-check + unit tests
 npm run typecheck
 npm test
@@ -41,6 +44,9 @@ Artifacts are written to `report/data/`:
   $I_T$ histogram, sampled paths, sub-sampled P&L traces.
 - `sweep.json` — grid over $(\alpha, \mu, \sigma)$ with per-cell MC metrics.
 - `qstar-surface.json` — $Q^*(\mu, T)$ closed-form surface.
+- `sim.worker.js` — esbuild bundle of `src/worker.ts` driving the
+  live-explorer WebWorker. Regenerate with `npm run bundle` after any
+  change under `src/`.
 
 ### CLI flags
 
@@ -60,7 +66,10 @@ Artifacts are written to `report/data/`:
 quarto preview report/report.qmd
 ```
 
-Regenerate the JSON (`npm run simulate` + `npm run sweep`) before previewing.
+Regenerate the JSON (`npm run simulate` + `npm run sweep`) and the
+live-explorer worker bundle (`npm run bundle`) before previewing. The
+JSON artifacts drive the static reference grid; the worker bundle drives
+the interactive sliders in the §"Live explorer" section.
 
 ## Layout
 
@@ -73,11 +82,14 @@ src/
   params.ts    typed Params + defaults
   models.ts    closed-form + MC for fee, 3a, 3b, 3c; break-even Q*
   report.ts    §4/§5 table assembly + histograms
-  cli.ts       entrypoint — prints tables, writes JSON
+  cli.ts       Node entrypoint — prints tables, writes JSON
+  worker.ts    Browser WebWorker entrypoint for the live explorer
+scripts/
+  bundle-worker.mjs    esbuild driver → report/data/sim.worker.js
 test/          vitest unit + cross-check suite (39 tests)
 report/
   report.qmd   Quarto + Observable notebook
-  data/        emitted JSON artifacts
+  data/        emitted JSON artifacts + sim.worker.js bundle
 ```
 
 ## Verification notes
