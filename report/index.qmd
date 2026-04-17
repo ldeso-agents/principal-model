@@ -55,7 +55,7 @@ the scaffolding for the jump-diffusion and calibration work to come.
 - Simulator: [`src/`](https://github.com/ldeso-agents/principal-model/tree/main/src) (Node ≥ 20, TypeScript, vitest)
 - Reproducibility: seeded Mulberry32 PRNG; every figure in Phase B is regenerated from `report/data/*.json`.
 
-Phase C scaffolding now lives at [phase-c.qmd](phase-c.qmd) — an
-interactive simulator whose price dynamics and demand model will be
-upgraded iteratively (jump-diffusion, Poisson demand, calibration,
-dynamic hedging).
+The [Phase C interactive simulator](phase-c.qmd) is live today on the
+baseline GBM model; its price dynamics and demand model will be upgraded
+iteratively (jump-diffusion, Poisson demand, calibration, dynamic
+hedging) behind the same UI.

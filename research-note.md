@@ -213,7 +213,7 @@ As $\mu \to 0$, $Q^* \to (1 + f) \cdot P \cdot S_0$ — the fee-based time-zero 
 | Deterministic demand | Phase C — compound-Poisson order flow |
 | GBM price dynamics | Phase C — Merton jump-diffusion and/or two-state regime switching |
 | No historical calibration | Phase C — kVCM proxy (KLIMA, BCT, NCT) |
-| No discounting, gas, or on-chain slippage | Phase B — parameterized |
+| No discounting, gas, or on-chain slippage | Phase C — parameterized |
 | Static (or absent) hedging | Phase C — dynamic delta hedge with inventory; perp/futures hedge if available |
 | No credit / counterparty layer | Not scoped |
 
