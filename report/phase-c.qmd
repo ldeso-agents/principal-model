@@ -82,25 +82,27 @@ format:
 
 ## Starting Phase C
 
-Phase B cross-checked the closed-form §1–§5 quantities against Monte Carlo
-and exposed a **pre-baked** sweep over $(\alpha, \mu, \sigma)$ through the
-Observable notebook. Phase C extends the modelling menu — jump diffusion,
-regime switching, Poisson retirements, historical calibration, dynamic
-hedging — and the first piece of scaffolding it needs is **a way to run the
+[Phase B](report.qmd) cross-checked the closed-form §1–§5 quantities (see
+the [Phase A note](phase-a.qmd)) against Monte Carlo and exposed a
+**pre-baked** sweep over $(\alpha, \mu, \sigma)$ through the Observable
+notebook. Phase C extends the modelling menu — jump diffusion, regime
+switching, Poisson retirements, historical calibration, dynamic hedging —
+and the first piece of scaffolding it needs is **a way to run the
 simulator live on parameters of our choosing**, not just a pre-computed grid.
 
 This page is that scaffolding. Every slider below triggers a fresh Monte
 Carlo in the browser (no server round-trip, no artifact regeneration). The
-baseline price process is the same GBM used in Phase B; subsequent Phase C
-iterations will swap in the richer dynamics behind the same UI.
+baseline price process is the same GBM used in [Phase B](report.qmd);
+subsequent Phase C iterations will swap in the richer dynamics behind the
+same UI.
 
 ::: {.callout-note-lite}
-**What changes vs. Phase B.** The pre-purchase hedge is now specified by
-the **raw inventory state** — a number of kVCM tokens and their USD cost
-basis — instead of the ratio $\alpha$. This removes the Phase B assumption
-that the tokens were bought today at $S_0$: you can seed the simulation
-with an inventory that was acquired earlier at a different price. The
-Phase B $(\alpha = k / (N \cdot P),\; \text{basis} = \alpha \cdot N \cdot P \cdot S_0)$ parametrisation
+**What changes vs. [Phase B](report.qmd).** The pre-purchase hedge is now
+specified by the **raw inventory state** — a number of kVCM tokens and
+their USD cost basis — instead of the ratio $\alpha$. This removes the
+Phase B assumption that the tokens were bought today at $S_0$: you can
+seed the simulation with an inventory that was acquired earlier at a
+different price. The Phase B $(\alpha = k / (N \cdot P),\; \text{basis} = \alpha \cdot N \cdot P \cdot S_0)$ parametrisation
 is a special case of the new one.
 :::
 

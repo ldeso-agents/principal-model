@@ -1,19 +1,22 @@
 # principal-model — Phases B + C
 
 TypeScript simulator and interactive report for the research note *Klima
-Protocol — Fee-Based vs. Principal Model* (`research-note.md`, Phase A).
+Protocol — Fee-Based vs. Principal Model* ([`research-note.md`](research-note.md),
+Phase A).
 
 - **Phase B** reproduces the §1–§5 closed-form quantities computationally,
   estimates the §4 tail-risk metrics by Monte Carlo, and exposes the
   results through a Quarto + Observable notebook.
-- **Phase C** is now underway: its first deliverable is
-  [`report/phase-c.qmd`](report/phase-c.qmd), a browser-native interactive
-  simulator. Every slider re-runs a fresh Monte Carlo on the parameters
-  of your choosing (starting kVCM price, starting carbon price per tonne,
-  drift and variance, initial inventory as tokens + cost basis, constant
-  retirements per day). Subsequent Phase C iterations will swap in richer
-  dynamics (jump diffusion, regime switching, Poisson demand,
-  calibration, dynamic hedging) behind the same UI.
+- **Phase C** is a browser-native interactive simulator
+  ([`report/phase-c.qmd`](report/phase-c.qmd)). Every slider re-runs a
+  fresh Monte Carlo on the parameters of your choosing (starting kVCM
+  price, starting carbon price per tonne, drift and variance, initial
+  inventory as tokens + cost basis, constant retirements per day), and a
+  drawable custom-curve scenario (with an Alchemy-fed historical preset)
+  evaluates the three books on a single user-sketched path. Subsequent
+  Phase C iterations will swap in richer dynamics (jump diffusion,
+  regime switching, Poisson demand, full calibration, dynamic hedging)
+  behind the same UI.
 
 ## Requirements
 
@@ -76,18 +79,22 @@ quarto preview report/phase-c.qmd
 
 ```
 src/
-  rng.ts       seeded Mulberry32 + Box-Muller
-  moments.ts   Dufresne E[I_T], Var[I_T] with μ→0 limit
-  gbm.ts       log-exact GBM stepper + trapezoidal I_T
-  risk.ts     quantile, VaR, CVaR, shortfall-vs-schedule
-  params.ts    typed Params + defaults
-  models.ts    closed-form + MC for fee, 3a, 3b, 3c; break-even Q*
-  report.ts    §4/§5 table assembly + histograms
-  cli.ts       entrypoint — prints tables, writes JSON
-test/          vitest unit + cross-check suite (39 tests)
+  rng.ts                     seeded Mulberry32 + Box-Muller
+  moments.ts                 Dufresne E[I_T], Var[I_T] with μ→0 limit
+  gbm.ts                     log-exact GBM stepper + trapezoidal I_T
+  risk.ts                    quantile, VaR, CVaR, shortfall-vs-schedule
+  params.ts                  typed Params + defaults
+  models.ts                  closed-form + MC for fee, 3a, 3b, 3c; break-even Q*
+  report.ts                  §4/§5 table assembly + histograms
+  cli.ts                     entrypoint — prints tables, writes JSON
+  fetch-historical-price.ts  Alchemy Prices pull for the Phase C historical preset
+test/                        vitest unit + cross-check suite (39 tests)
 report/
-  report.qmd   Quarto + Observable notebook
-  data/        emitted JSON artifacts
+  index.qmd                  landing page linking Phases A / B / C
+  phase-a.qmd                includes research-note.md (Phase A)
+  report.qmd                 Phase B — Quarto + Observable notebook
+  phase-c.qmd                Phase C — live in-browser Monte Carlo + custom curve
+  data/                      emitted JSON artifacts
 ```
 
 ## Verification notes

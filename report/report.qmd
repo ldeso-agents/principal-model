@@ -49,7 +49,7 @@ question for the business is: *given how the token price is expected to move,
 which model makes more money, which one loses more in a bad scenario, and how
 much does pre-buying inventory (the "hedge ratio" $\alpha$) reduce that risk?*
 
-The companion research note (`research-note.md`) derives the math. This
+The companion [research note](phase-a.qmd) derives the math. This
 notebook runs the numbers: it simulates thousands of possible futures for the
 token price, computes the company's profit and loss (P&L) in each one, and
 plots the distributions.
@@ -59,14 +59,15 @@ plots the distributions.
 (mean, standard deviation, quantiles) and with Monte Carlo simulation
 helps, but the prose in each section explains what every plot is showing
 and what a "good" or "bad" pattern looks like. Readers who want the
-derivations should keep `research-note.md` open alongside; readers who just
+derivations should keep the [Phase A note](phase-a.qmd) open alongside; readers who just
 want the business intuition can skim past the equations.
 :::
 
 ## Overview
 
-This notebook is the **Phase B** companion to `research-note.md` (Phase A,
-the mathematical note). Phase A wrote down closed-form formulas for the
+This notebook is the **Phase B** companion to the
+[Phase A research note](phase-a.qmd) (the mathematical note). Phase A
+wrote down closed-form formulas for the
 mean and variance of every book's P&L under a standard price model
 (Geometric Brownian Motion, or GBM — see the next section). Phase B, this
 notebook, has three jobs:
@@ -126,8 +127,8 @@ repeatedly on this page:
 
 ### Notation cheat-sheet
 
-A brief reminder of the symbols used throughout (full derivations in
-`research-note.md` §1–§5). Most symbols have a short English name in
+A brief reminder of the symbols used throughout (full derivations in the
+[Phase A note](phase-a.qmd) §1–§5). Most symbols have a short English name in
 parentheses: read the table once top-to-bottom the first time you use
 this page, and after that the formulas should parse on sight.
 
@@ -859,15 +860,15 @@ report later.
 
 **On what this notebook does *not* do:**
 
-- This notebook is Phase B. Phase C extensions (jump diffusion,
-  Poisson demand, historical calibration against a real kVCM proxy,
-  dynamic hedging strategies) are intentionally out of scope here.
-  The current numbers assume idealised GBM price dynamics and a
+- This notebook is Phase B. [Phase C](phase-c.qmd) extensions (jump
+  diffusion, Poisson demand, historical calibration against a real kVCM
+  proxy, dynamic hedging strategies) are intentionally out of scope
+  here. The current numbers assume idealised GBM price dynamics and a
   deterministic retirement flow; those assumptions are the cleanest
   ones under which closed-form results exist and can be cross-checked.
-- Gas, slippage, and discounting are not modelled in the baseline.
-  They are parameterizable hooks in the simulator (see `src/params.ts`)
-  but are zeroed out in this report.
+- Gas, slippage, and discounting are not modelled in the baseline and
+  are not yet exposed in the simulator's parameter record
+  (`src/params.ts`); they are deferred to Phase C.
 - Nothing here is financial advice or a calibration against any real
   token. Use the framework; plug in your own $(\mu, \sigma)$ calibrated from
   data before making any business decision.
