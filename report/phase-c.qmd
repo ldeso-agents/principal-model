@@ -22,17 +22,16 @@ format:
      sidesteps Quarto's TOC-grid interactions (which were making the
      text column too wide and introducing an extra vertical gap).
 
-     The left gutter's actual width can't be computed from 100vw alone:
-     Quarto's page grid places the body column off-centre (TOC sits on
-     the right), and the body column is narrower than a round viewport
-     fraction. So --pc-left-gutter is measured at runtime from the body
-     column's bounding rect (see <script> below). Default 0 keeps the
-     sidebar collapsed until the measurement lands, so nothing bleeds
-     off-screen on first paint. */
+     The sidebar is a fixed --pc-sidebar-w wide rather than adapting to
+     the gutter's measured width: Quarto cosmo's body column sits off-
+     centre (TOC on the right), so the gutter can't be computed from
+     100vw alone. Instead we pick a width that fits the 11rem label
+     column plus a usable slider + readout, and stack the layout below
+     the viewport width where that sidebar would collide with the body
+     column (see @media block near the end of this <style>). */
   .pc-section {
+    --pc-sidebar-w: 300px;
     --pc-gap: 1.5rem;
-    --pc-left-gutter: 0px;
-    --pc-sidebar-w: clamp(0px, calc(var(--pc-left-gutter) - 1rem), 420px);
     display: grid;
     grid-template-columns: var(--pc-sidebar-w) var(--pc-gap) minmax(0, 1fr);
     align-items: start;
@@ -78,11 +77,12 @@ format:
     min-width: 0;
     flex: 1 1 auto;
   }
-  /* When JS has measured a gutter too small for a usable sidebar, or on
-     narrow viewports, drop the grid, unstick the controls, reset margin,
+  /* Below this viewport width, Quarto cosmo's left gutter is too tight
+     to seat --pc-sidebar-w + --pc-gap alongside the body column and TOC,
+     so drop the grid, unstick the controls, reset the negative margin,
      and release the fixed label column so labels can shrink with the
-     now-stacked layout. .pc-narrow is toggled by the script below. */
-  @media (max-width: 1100px) {
+     now-stacked layout. */
+  @media (max-width: 1500px) {
     .pc-section { display: block; margin-left: 0; }
     .pc-section > .pc-controls { position: static; max-height: none; }
     .pc-controls form[class*="oi-"] > label {
@@ -91,54 +91,11 @@ format:
       max-width: 160px !important;
     }
   }
-  .pc-section.pc-narrow { display: block; margin-left: 0; }
-  .pc-section.pc-narrow > .pc-controls { position: static; max-height: none; }
-  .pc-section.pc-narrow .pc-controls form[class*="oi-"] > label {
-    width: auto !important;
-    min-width: 90px !important;
-    max-width: 160px !important;
-  }
 
   .pc-readout { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 0.6rem; margin: 0.4rem 0 0.2rem; font-size: 0.8rem; }
   .pc-readout .k { color: #555; }
   .pc-readout .v { font-family: ui-monospace, monospace; text-align: right; }
 </style>
-<script>
-  // Measure the actual left-gutter width of each .pc-section (the distance
-  // from the viewport's left edge to the body column's left edge) and
-  // expose it to CSS as --pc-left-gutter. We read the parent's bounding
-  // rect rather than .pc-section's own, because the section has a negative
-  // margin-left that would make its own rect.left meaningless. If the
-  // gutter is below a usable threshold, mark the section .pc-narrow so
-  // the stacked layout kicks in instead of a squashed sidebar.
-  (function () {
-    // Below this, the sidebar can't fit the fixed 11rem label column plus
-    // a usable slider track + readout, so we stack instead.
-    var MIN_GUTTER = 320;
-    function update() {
-      document.querySelectorAll('.pc-section').forEach(function (sec) {
-        var parent = sec.parentElement;
-        if (!parent) return;
-        var left = parent.getBoundingClientRect().left;
-        if (left < MIN_GUTTER) {
-          sec.classList.add('pc-narrow');
-          sec.style.setProperty('--pc-left-gutter', '0px');
-        } else {
-          sec.classList.remove('pc-narrow');
-          sec.style.setProperty('--pc-left-gutter', left + 'px');
-        }
-      });
-    }
-    var schedule = function () { requestAnimationFrame(update); };
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', schedule);
-    } else {
-      schedule();
-    }
-    window.addEventListener('load', schedule);
-    window.addEventListener('resize', schedule);
-  })();
-</script>
 ```
 
 ## Starting Phase C
