@@ -20,12 +20,20 @@ format:
      width; the controls panel is pulled into the left gutter via a
      negative margin on the grid container. Avoiding a .column-* escape
      sidesteps Quarto's TOC-grid interactions (which were making the
-     text column too wide and introducing an extra vertical gap). */
+     text column too wide and introducing an extra vertical gap).
+
+     Sidebar width grows with the viewport (so it uses as much of the
+     left gutter as possible) but is clamped above so it can't bleed
+     past the left edge of the frame. 900px ≈ Quarto's cosmo body column
+     at this page's layout; the 1rem safety margin keeps the panel off
+     the viewport edge. */
   .pc-section {
+    --pc-gap: 1.5rem;
+    --pc-sidebar-w: clamp(320px, calc((100vw - 900px) / 2 - 1rem), 480px);
     display: grid;
-    grid-template-columns: 320px 1.5rem minmax(0, 1fr);
+    grid-template-columns: var(--pc-sidebar-w) var(--pc-gap) minmax(0, 1fr);
     align-items: start;
-    margin-left: calc(-320px - 1.5rem);
+    margin-left: calc(-1 * (var(--pc-sidebar-w) + var(--pc-gap)));
   }
   .pc-section > .pc-main { grid-column: 3; min-width: 0; }
   .pc-section > .pc-controls {
@@ -42,17 +50,42 @@ format:
   }
   .pc-controls h3 { font-size: 0.9rem; margin: 0.9rem 0 0.4rem; color: #333; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.2rem; }
   .pc-controls p { font-size: 0.82rem; color: #555; margin: 0.25rem 0 0.6rem; }
-  /* Observable Inputs truncate long labels by default — let them wrap. */
+  /* Align every slider row on a shared label column so the ranges and
+     number boxes line up vertically. A fixed label width (wrapping when
+     needed) is what makes the subsequent track + value columns start at
+     the same x across rows. */
+  .pc-controls form[class*="oi-"] {
+    align-items: center;
+  }
   .pc-controls form[class*="oi-"] > label {
-    width: auto !important;
-    min-width: 90px; max-width: 130px;
+    width: 11rem !important;
+    min-width: 11rem !important;
+    max-width: 11rem !important;
     white-space: normal !important;
     line-height: 1.2;
+    flex-shrink: 0;
   }
-  /* Narrow screens: drop the grid, unstick the controls, reset margin. */
+  /* Give the numeric readout / select enough room that long values
+     (e.g. 2,000,000 for inventory) don't get clipped with an ellipsis. */
+  .pc-controls form[class*="oi-"] input[type="number"],
+  .pc-controls form[class*="oi-"] select {
+    min-width: 5.5rem;
+  }
+  .pc-controls form[class*="oi-"] input[type="range"] {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  /* Narrow screens: drop the grid, unstick the controls, reset margin,
+     and release the fixed label column so labels can shrink with the
+     now-stacked layout. */
   @media (max-width: 1100px) {
     .pc-section { display: block; margin-left: 0; }
     .pc-section > .pc-controls { position: static; max-height: none; }
+    .pc-controls form[class*="oi-"] > label {
+      width: auto !important;
+      min-width: 90px !important;
+      max-width: 160px !important;
+    }
   }
 
   .pc-readout { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 0.6rem; margin: 0.4rem 0 0.2rem; font-size: 0.8rem; }
