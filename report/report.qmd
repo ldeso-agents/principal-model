@@ -618,6 +618,7 @@ All P&L sweep quantities are in USD over horizon $T$.
 sweep = FileAttachment("data/sweep.json").json()
 ```
 
+::: {.panel-sidebar}
 ```{ojs}
 //| echo: false
 viewof pickAlpha = Inputs.range([0,1], { step: 0.25, value: 0.5, label: "hedge ratio α" })
@@ -627,6 +628,9 @@ viewof pickAlpha = Inputs.range([0,1], { step: 0.25, value: 0.5, label: "hedge r
 //| echo: false
 viewof pickMu = Inputs.select(sweep.grid.mus, { value: 0.05, label: "drift μ (/yr)" })
 ```
+:::
+
+::: {.panel-fill}
 
 ### Tail risk vs volatility $\sigma$ (fixed $\alpha, \mu$)
 
@@ -717,6 +721,8 @@ Plot.plot({
   ]
 })
 ```
+
+:::
 
 ## Break-even quote surface $Q^*(\mu, T)$
 
