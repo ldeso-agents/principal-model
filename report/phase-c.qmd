@@ -175,11 +175,13 @@ For a deterministic complement — drawing a specific price trajectory
 and reading its P&L straight off the curve — see the drawn-curve
 scenario tool on the [Conclusions](conclusions.qmd) page.
 
-The underlying price model is still the same Geometric Brownian Motion
-([Phase A](phase-a.qmd) §1) and the same deterministic retirement flow.
-Those simplifying assumptions are the ones under which closed-form
-anchors exist; the later Phase C iterations will swap in jump
-diffusion, regime switching, and Poisson demand behind the same UI.
+The underlying price model is Geometric Brownian Motion
+([Phase A](phase-a.qmd) §1) with an optional Merton jump-diffusion
+overlay (leave the jump sliders at zero to recover pure GBM bit-for-bit)
+and the same deterministic retirement flow. The GBM closed-form
+anchors still apply to the means (the drift is compensated so
+$\mathbb{E}[S_t]$ is unchanged by jumps); subsequent Phase C iterations
+will swap in regime switching and Poisson demand behind the same UI.
 
 ::: {.callout-note-lite}
 **Minimum background to read this page.** Familiarity with Monte Carlo
@@ -203,9 +205,11 @@ simulator live on parameters of our choosing**, not just a pre-computed grid.
 
 This page is that scaffolding. Every slider below triggers a fresh Monte
 Carlo in the browser (no server round-trip, no artifact regeneration). The
-baseline price process is the same GBM used in [Phase B](phase-b.qmd);
-subsequent Phase C iterations will swap in the richer dynamics behind the
-same UI.
+baseline price process is the same GBM used in [Phase B](phase-b.qmd),
+now with an optional Merton jump-diffusion overlay exposed through three
+jump sliders (leave them at zero to recover pure GBM); subsequent Phase
+C iterations will swap in the remaining richer dynamics behind the same
+UI.
 
 ### What the page actually does
 
@@ -294,6 +298,9 @@ formulas should parse on sight.
 | $P := \pi_0 / S_0$ | protocol constant: kVCM needed per tonne | kVCM / tonne |
 | $\mu$ | GBM drift (annualised) | 1 / year |
 | $\sigma^2$ | GBM variance (annualised); $\sigma = \sqrt{\sigma^2}$ | 1 / year |
+| $\lambda_J$ | Merton jump intensity (expected jumps per year) | 1 / year |
+| $\mu_J$ | mean of the log-jump $\log J \sim N(\mu_J, \sigma_J^2)$ | dimensionless |
+| $\sigma_J$ | SD of the log-jump | dimensionless |
 | $\lambda_{\mathrm{day}}$ | retirement flow specified to the UI | tonnes / day |
 | $\lambda = 365 \cdot \lambda_{\mathrm{day}}$ | same flow, internal year unit | tonnes / year |
 | $T$ | horizon (days in UI, years internally) | days / years |
@@ -360,6 +367,32 @@ viewof mu = Inputs.range([-0.5, 0.5], { step: 0.005, value: 0.05, label: "drift 
 ```{ojs}
 //| echo: false
 viewof sigma2 = Inputs.range([0, 2.5], { step: 0.005, value: 0.25, label: "variance σ² (annualised)" })
+```
+
+### Jumps (Merton)
+
+Optional discrete shocks layered on top of the GBM. $\lambda_J$ is the
+expected number of jumps per year; when a jump arrives the log-price
+receives an independent $N(\mu_J, \sigma_J^2)$ shock. The drift is
+**compensated** ($\mu$ absorbs $-\lambda_J \kappa$ with
+$\kappa = e^{\mu_J + \sigma_J^2/2} - 1$) so $\mathbb{E}[S_t] = S_0 e^{\mu t}$
+stays put regardless of the jump settings — jumps widen the
+distribution without relocating it. Leaving $\lambda_J = 0$ collapses
+to pure GBM.
+
+```{ojs}
+//| echo: false
+viewof lambdaJ = Inputs.range([0, 20], { step: 0.1, value: 0, label: "jump intensity λ_J (/yr)" })
+```
+
+```{ojs}
+//| echo: false
+viewof muJ = Inputs.range([-1, 1], { step: 0.01, value: 0, label: "mean log-jump μ_J" })
+```
+
+```{ojs}
+//| echo: false
+viewof sigmaJ = Inputs.range([0, 1], { step: 0.01, value: 0, label: "log-jump SD σ_J" })
 ```
 
 ### Demand & inventory
@@ -432,12 +465,14 @@ viewof seed = Inputs.range([1, 9999], { step: 1, value: 42, label: "PRNG seed" }
 mcResetButton = {
   const defaults = {
     pi0: 125, P: 1790, mu: 0.05, sigma2: 0.25,
+    lambdaJ: 0, muJ: 0, sigmaJ: 0,
     lambdaDay: 1, kPre: 300000, cBasis: 21000,
     Tdays: 365, Q: 180, fee: 0.4,
     nPaths: 5000, nSteps: 100, seed: 42,
   };
   const views = {
     pi0: viewof pi0, P: viewof P, mu: viewof mu, sigma2: viewof sigma2,
+    lambdaJ: viewof lambdaJ, muJ: viewof muJ, sigmaJ: viewof sigmaJ,
     lambdaDay: viewof lambdaDay, kPre: viewof kPre, cBasis: viewof cBasis,
     Tdays: viewof Tdays, Q: viewof Q, fee: viewof fee,
     nPaths: viewof nPaths, nSteps: viewof nSteps, seed: viewof seed,
@@ -497,6 +532,26 @@ plots below when you move the slider.
   unchanged but inflates the standard deviation and fattens the
   tails. Use the "VaR / CVaR" columns in the summary table below to
   watch the effect.
+
+**Jumps (Merton)** (three knobs — this is the first Phase-C roadmap
+extension to land; the baseline GBM is recovered by leaving
+$\lambda_J = 0$).
+
+- **$\lambda_J$ (jumps / year).** How frequently a discrete shock
+  hits. At $\lambda_J = 0$ the process is pure GBM; at $\lambda_J =
+  4$ the price takes on average four Poisson-arrival shocks over a
+  one-year horizon. Raising $\lambda_J$ widens every book's
+  distribution.
+- **$\mu_J$ (mean log-jump).** The centre of the log-jump
+  distribution. $\mu_J = 0$ gives symmetric shocks; $\mu_J < 0$
+  tilts the jumps toward crashes (each arrival multiplies the price
+  by roughly $e^{\mu_J}$), which fattens the **left** tail of the
+  principal books and the **right** tail of the fee book. Because
+  the drift is compensated, every book's mean stays put — only the
+  shape changes.
+- **$\sigma_J$ (log-jump SD).** How dispersed individual jumps are
+  around $\mu_J$. Raising $\sigma_J$ deepens the tails on both
+  sides.
 
 **Demand & inventory** (three knobs — this is the Phase-C-specific
 block).
@@ -694,11 +749,16 @@ Every slider change triggers the following sequence:
 1. **Seed the PRNG.** A Mulberry32 generator is initialised from the
    current `seed` slider. The generator emits uniform $U(0,1)$ draws;
    Box–Muller converts pairs of uniforms into standard normals.
-2. **Simulate $n_{\mathrm{paths}}$ GBM trajectories.** Each trajectory
-   steps the price forward $n_{\mathrm{steps}}$ times using the
-   exact log-GBM increment $S_{t + dt} = S_t \cdot \exp\!\big((\mu -
-   \tfrac12 \sigma^2)\,dt + \sigma\sqrt{dt}\,Z\big)$. This is the
-   same recipe as `src/gbm.ts` in Phase B.
+2. **Simulate $n_{\mathrm{paths}}$ GBM (or jump-GBM) trajectories.**
+   Each trajectory steps the price forward $n_{\mathrm{steps}}$
+   times using the log-GBM increment $S_{t + dt} = S_t \cdot
+   \exp\!\big((\mu - \tfrac12 \sigma^2 - \lambda_J \kappa)\,dt +
+   \sigma\sqrt{dt}\,Z + \sum_{j=1}^{N_{t+dt} - N_t} Y_j\big)$, where
+   $N$ is a Poisson process with intensity $\lambda_J$, each
+   $Y_j \sim N(\mu_J, \sigma_J^2)$, and
+   $\kappa = e^{\mu_J + \sigma_J^2/2} - 1$ is the Merton
+   compensation term. With $\lambda_J = 0$ the jump sum is empty and
+   this reduces to the same recipe as `src/gbm.ts`.
 3. **Accumulate the integrals.** On each trajectory we compute
    (a) the full-horizon integral $I_T = \int_0^T S_t\,dt$ by the
    trapezoid rule, and (b) the tail integral $J_\tau = \int_{\tau
@@ -744,7 +804,20 @@ function makeRng(seedVal) {
     cached = r * Math.sin(th);
     return r * Math.cos(th);
   };
-  return { uniform, normal };
+  // Knuth's product-of-uniforms Poisson sampler. Always called here with
+  // lambda = λ_J · dt ≪ 1, so the loop resolves in one or two iterations.
+  const poisson = (lambda) => {
+    if (!(lambda > 0)) return 0;
+    const L = Math.exp(-lambda);
+    let k = 0;
+    let p = 1;
+    for (;;) {
+      k++;
+      p *= uniform();
+      if (p <= L) return k - 1;
+    }
+  };
+  return { uniform, normal, poisson };
 }
 ```
 
@@ -838,11 +911,22 @@ formatTickDate = function (date, tdays) {
 ```{ojs}
 //| echo: false
 function simulate(inputs) {
-  const { S0, mu, sigma, P, lambda, T, Q, fee, kPre, cBasis, nPaths, nSteps, seed } = inputs;
+  const {
+    S0, mu, sigma, P, lambda, T, Q, fee, kPre, cBasis,
+    lambdaJ, muJ, sigmaJ,
+    nPaths, nSteps, seed,
+  } = inputs;
   const rng = makeRng(seed);
   const dt = T / nSteps;
-  const drift = (mu - 0.5 * sigma * sigma) * dt;
+  // Compensated Merton drift: subtracting λ_J·κ keeps E[S_t] = S_0·e^{μt}
+  // regardless of jump settings, so turning jumps on widens the
+  // distributions without shifting their means.
+  const kappa = lambdaJ > 0
+    ? Math.exp(muJ + 0.5 * sigmaJ * sigmaJ) - 1
+    : 0;
+  const drift = (mu - 0.5 * sigma * sigma - lambdaJ * kappa) * dt;
   const diffusion = sigma * Math.sqrt(dt);
+  const lamDt = lambdaJ * dt;
   const N = lambda * T;
   // Fraction of horizon over which inventory lasts, clamped to [0, 1].
   // Retirements are a constant flow λ, so `kPre` tokens cover
@@ -886,7 +970,14 @@ function simulate(inputs) {
 
     for (let k = 1; k <= nSteps; k++) {
       const z = rng.normal();
-      S = S * Math.exp(drift + diffusion * z);
+      let jumpSum = 0;
+      if (lambdaJ > 0) {
+        const nJ = rng.poisson(lamDt);
+        for (let j = 0; j < nJ; j++) {
+          jumpSum += muJ + sigmaJ * rng.normal();
+        }
+      }
+      S = S * Math.exp(drift + diffusion * z + jumpSum);
       if (path) path[k] = S;
       const w = (k === nSteps) ? 0.5 : 1;
       IT += w * S;
@@ -974,6 +1065,28 @@ still get sub-second updates. If you crank `paths` all the way up to
 40,000 and the page becomes sluggish, you are waiting on the browser
 to re-histogram and re-plot, not on the simulator itself.
 
+::: {.callout-note appearance="simple"}
+## What to expect when you raise $\lambda_J$
+
+With the compensated Merton drift, every book's **expected** P&L is
+invariant in $(\lambda_J, \mu_J, \sigma_J)$ — the black mean rule on
+each histogram stays where it is, and the "$\mathbb{E}[\Pi]$ (mc)"
+column barely moves beyond its MC noise band. What does move:
+
+- **SD, VaR, CVaR.** All widen, because jumps inject extra variance
+  that GBM cannot represent.
+- **Skew.** With $\mu_J < 0$ the principal (custom) and
+  back-to-back histograms grow a longer left tail; the fee
+  histogram a longer right tail (it is a mirror). With $\mu_J = 0$
+  the widening is symmetric.
+- **Sample paths.** The grey lines below pick up occasional visible
+  discrete drops / gaps — the signature of Poisson-arrival jumps
+  between grid points.
+
+At $\lambda_J = 0$ the page is bit-identical to pure GBM, so use that
+as the anchor when you want to read off the jump contribution.
+:::
+
 ```{ojs}
 //| echo: false
 run = {
@@ -981,6 +1094,7 @@ run = {
     S0: derived.S0, mu, sigma: derived.sigma, P,
     lambda: derived.lambda, T: derived.T,
     Q, fee, kPre, cBasis,
+    lambdaJ, muJ, sigmaJ,
     nPaths, nSteps, seed,
   };
   const t0 = performance.now();
