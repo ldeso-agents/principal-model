@@ -32,7 +32,7 @@ Because $P$ is a constant multiplier, $\pi_t = P \cdot S_t$ is itself GBM with t
 
 **Demand.** Retirement flow is deterministic at rate $\lambda$ tonnes / unit time. The sole source of randomness in the baseline is the kVCM price.
 
-**Ignored in the baseline.** Risk-free discounting, gas, on-chain slippage, order-flow stochasticity. Each is re-introduced in a later phase (see §6).
+**Ignored in the baseline.** Risk-free discounting, gas, on-chain slippage, order-flow stochasticity. Each is re-introduced in a later phase (see §7).
 
 ### The central stochastic object
 
@@ -206,12 +206,91 @@ As $\mu \to 0$, $Q^* \to (1 + f) \cdot P \cdot S_0$ — the fee-based time-zero 
 
 **Asymmetry observation.** Even at $Q = Q^*$, the two books have radically different risk profiles: the fee book has bounded positive-only revenue, while the back-to-back principal book has the same variance but a *left-skewed* loss tail. Matching means does not match distributions.
 
-## 6. Limitations and next steps
+## 6. Compensated Merton jump-diffusion
+
+The first Phase C relaxation of the baseline replaces pure GBM with Merton's
+jump-diffusion. The spot process becomes
+
+$$
+\frac{dS_t}{S_{t-}} = (\mu - \lambda_J \kappa)\,dt + \sigma\,dW_t + (J - 1)\,dN_t,
+$$
+
+where $N_t$ is a Poisson process with intensity $\lambda_J$ independent of
+$W_t$, and at each arrival the price multiplies by $J = e^Y$ with
+$Y \sim N(\mu_J, \sigma_J^2)$ i.i.d. The drift offset
+$\kappa := \mathbb{E}[J - 1] = e^{\mu_J + \sigma_J^2/2} - 1$ is the **Merton
+compensation** — it subtracts the jump component's mean effect so the pure-$W$
+part carries the economic drift $\mu$.
+
+### Means are invariant under compensation
+
+The exact solution is
+
+$$
+S_t = S_0 \exp\!\Big(\big(\mu - \tfrac12 \sigma^2 - \lambda_J \kappa\big) t
+      + \sigma W_t + \sum_{k = 1}^{N_t} Y_k\Big).
+$$
+
+Taking expectations and using independence of $W$, $N$, and $\{Y_k\}$:
+
+$$
+\mathbb{E}[S_t]
+  = S_0 \, e^{(\mu - \lambda_J \kappa) t}
+    \, \mathbb{E}\!\left[e^{\sigma W_t}\right]
+    \, \mathbb{E}\!\left[\prod_{k=1}^{N_t} e^{Y_k}\right]
+  = S_0 \, e^{(\mu - \lambda_J \kappa) t} \cdot e^{\sigma^2 t/2}
+    \cdot e^{\lambda_J \kappa t}
+  = S_0 \, e^{\mu t},
+$$
+
+using the generating-function identity
+$\mathbb{E}\!\left[\prod_{k=1}^{N_t} e^{Y_k}\right]
+  = e^{\lambda_J t (\mathbb{E}[e^Y] - 1)}
+  = e^{\lambda_J \kappa t}$
+for compound-Poisson exponentials. So $\mathbb{E}[S_t] = S_0 \cdot e^{\mu t}$ is
+identical to the pure-GBM value, for every $(\lambda_J, \mu_J, \sigma_J)$.
+
+Integrating over $[0, T]$ and swapping Fubini:
+
+$$
+\mathbb{E}[I_T] = \int_0^T \mathbb{E}[S_t]\,dt = S_0 \cdot \frac{e^{\mu T} - 1}{\mu},
+$$
+
+i.e. **Dufresne's GBM first-moment formula carries over unchanged**. Consequently
+every mean-level quantity that depended on $I_T$ linearly does too:
+
+- $\mathbb{E}[R_{\mathrm{fee}}] = f \cdot P \cdot \lambda \cdot \mathbb{E}[I_T]$,
+- $\mathbb{E}[\Pi_{\mathrm{b2b}}] = Q \cdot N - P \cdot \lambda \cdot \mathbb{E}[I_T]$,
+- $\mathbb{E}[\Pi_\alpha] = (1-\alpha) \cdot \mathbb{E}[\Pi_{\mathrm{b2b}}] + \alpha \cdot \Pi_{\mathrm{matched}}$,
+- $Q^* = (1+f) \cdot P \cdot S_0 \cdot (e^{\mu T} - 1)/(\mu T)$.
+
+The matched book's §3a P&L is already pathwise-deterministic, so jumps don't
+touch it either.
+
+### Variance is not
+
+Jumps do inflate $\mathrm{Var}[S_t]$ (and therefore $\mathrm{Var}[I_T]$ and every
+downstream variance / tail metric). A closed form exists but is more involved;
+Phase B reports the pure-GBM $\mathrm{Var}[I_T]$ as a **GBM anchor** and leaves
+the true jump-aware tail metrics to Monte Carlo (the tests in
+`test/jump-gbm.test.ts` confirm that the GBM closed-form means still match the
+jump-MC means within CI, and that the empirical variance strictly exceeds the
+GBM anchor).
+
+### Itô deltas are unchanged in expectation
+
+Because the jump contribution to $\mathbb{E}[S_t]$ is zero, the fee and 3b
+delta expressions in §4 continue to apply verbatim. The static hedge ratio
+from §3a, $(P \cdot \lambda) \cdot (T - t)$ tokens at time $t$, is therefore
+still the right hedge in expectation under compensated Merton — though the
+realised hedging error has fatter tails.
+
+## 7. Limitations and next steps
 
 | Baseline simplification | Removed in |
 | --- | --- |
 | Deterministic demand | Phase C — compound-Poisson order flow |
-| GBM price dynamics | Phase C — Merton jump-diffusion implemented; two-state regime switching pending |
+| GBM price dynamics | Phase C — Merton jump-diffusion implemented (§6); two-state regime switching pending |
 | No historical calibration | Phase C — kVCM proxy (KLIMA, BCT, NCT) |
 | No discounting, gas, or on-chain slippage | Phase C — parameterized |
 | Static (or absent) hedging | Phase C — dynamic delta hedge with inventory; perp/futures hedge if available |
