@@ -187,6 +187,85 @@ function extractRowMetrics(
 const QSTAR_MUS = [-0.1, -0.05, 0, 0.05, 0.1, 0.15, 0.2];
 const QSTAR_TS = [0.25, 0.5, 1, 2, 3];
 
+// Canonical Merton overlay used to verify research-note.md §6: the compensated
+// drift keeps every closed-form *mean* identical to the GBM anchor even with
+// fat, negatively-biased jumps. Fixed parameters so the Phase B verification
+// table is stable across reruns.
+const JUMP_CHECK: { lambdaJ: number; muJ: number; sigmaJ: number } = {
+  lambdaJ: 3,
+  muJ: -0.1,
+  sigmaJ: 0.15,
+};
+
+function runJumpCheck(baseParams: Params): unknown {
+  // Rerun with the canonical overlay; reuse the caller's seed/nPaths/nSteps so
+  // the MC noise bands match the main-run scale.
+  const jumpParams = withOverrides(baseParams, JUMP_CHECK);
+  const r = buildReport(jumpParams, { keepPaths: 0, traceSize: 0, histBins: 0 });
+  return {
+    overlay: JUMP_CHECK,
+    rows: r.rows.map((row) => ({
+      name: row.name,
+      gbmClosedMean: row.closedFormMean,
+      gbmClosedSd: row.closedFormSd,
+      mertonMcMean: row.mcMean,
+      mertonMcCi95: row.mcCi95,
+      mertonMcSd: row.mcSd,
+      zVsGbmClosed: row.zScore,
+    })),
+    terminalSCheck: {
+      gbmClosed: r.terminalSCheck.closedForm,
+      mertonMcMean: r.terminalSCheck.mcMean,
+      zVsGbmClosed: r.terminalSCheck.zScore,
+    },
+  };
+}
+
+interface JumpCheckRow {
+  name: string;
+  gbmClosedMean: number;
+  gbmClosedSd: number;
+  mertonMcMean: number;
+  mertonMcCi95: number;
+  mertonMcSd: number;
+  zVsGbmClosed: number;
+}
+
+interface JumpCheck {
+  overlay: { lambdaJ: number; muJ: number; sigmaJ: number };
+  rows: JumpCheckRow[];
+  terminalSCheck: {
+    gbmClosed: number;
+    mertonMcMean: number;
+    zVsGbmClosed: number;
+  };
+}
+
+function printJumpCheck(check: unknown): void {
+  const c = check as JumpCheck;
+  const { lambdaJ, muJ, sigmaJ } = c.overlay;
+  console.log(
+    `\n§6 — Compensated Merton overlay (λ_J=${lambdaJ}, μ_J=${muJ}, σ_J=${sigmaJ})`,
+  );
+  console.log(
+    "  means still match the GBM closed form; SD inflates; see research-note.md §6",
+  );
+  console.log(
+    "  model          E[Π] gbm-cf   E[Π] merton   ±CI95          SD gbm-cf    SD merton     z",
+  );
+  for (const r of c.rows) {
+    console.log(
+      `  ${r.name.padEnd(14)}` +
+        ` ${fmt(r.gbmClosedMean).padStart(12)}` +
+        ` ${fmt(r.mertonMcMean).padStart(12)}` +
+        ` ${("±" + fmt(r.mertonMcCi95)).padStart(14)}` +
+        ` ${fmt(r.gbmClosedSd).padStart(12)}` +
+        ` ${fmt(r.mertonMcSd).padStart(12)}` +
+        ` ${fmt(r.zVsGbmClosed, 2).padStart(6)}`,
+    );
+  }
+}
+
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   const params = withOverrides(defaultParams, args.overrides);
@@ -194,8 +273,10 @@ function main(): void {
   mkdirSync(DATA_DIR, { recursive: true });
 
   const run = printMainTable(params);
+  const jumpCheck = runJumpCheck(params);
+  printJumpCheck(jumpCheck);
   const runJson = resolve(DATA_DIR, `run-${params.seed}.json`);
-  writeFileSync(runJson, JSON.stringify(run, null, 2));
+  writeFileSync(runJson, JSON.stringify({ ...run, jumpCheck }, null, 2));
   console.log(`\nwrote ${runJson}`);
 
   if (args.sweep) {

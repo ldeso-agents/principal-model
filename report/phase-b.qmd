@@ -328,6 +328,74 @@ Inputs.table(run.rows, {
 })
 ```
 
+### §6 — Compensated Merton: closed-form means survive jumps
+
+Phase C adds an optional Merton jump-diffusion overlay to the spot
+process (see [Phase C](phase-c.qmd) for the live sliders, and the
+[Phase A note](phase-a.qmd) §6 for the derivation). The key claim:
+the drift compensation term $-\lambda_J \kappa$ with
+$\kappa = e^{\mu_J + \sigma_J^2/2} - 1$ makes $\mathbb{E}[S_t] = S_0
+e^{\mu t}$ exact for **every** $(\lambda_J, \mu_J, \sigma_J)$, so the
+Dufresne first moment $\mathbb{E}[I_T]$, the GBM closed-form means of
+every book, and the break-even quote $Q^*$ all carry over unchanged.
+Only variances and tail metrics are jump-sensitive.
+
+The table below is the Phase B numerical verification of that claim.
+It re-runs the main simulator under a canonical overlay
+($\lambda_J = 3$/yr, $\mu_J = -0.1$, $\sigma_J = 0.15$) chosen to be
+fat enough that a variance-dependent formula would visibly
+disagree — and compares the Merton Monte Carlo means against the
+**GBM** closed-form means. The expected signature:
+
+- $|z| \lesssim 2$ across all rows (means agree within MC noise),
+- **SD (merton)** strictly greater than **SD (gbm-cf)** on every row
+  (jumps inject extra variance the GBM formula cannot see).
+
+If a row's $|z|$ is consistently large, the compensation wiring is
+broken. If the Merton SD ever drops below the GBM-cf SD by more than
+MC noise, the jump overlay is not firing.
+
+```{ojs}
+//| echo: false
+Inputs.table(run.jumpCheck.rows, {
+  columns: ["name","gbmClosedMean","mertonMcMean","mertonMcCi95","gbmClosedSd","mertonMcSd","zVsGbmClosed"],
+  header: {
+    name: "model",
+    gbmClosedMean: "E[Π] gbm-cf",
+    mertonMcMean: "E[Π] merton-mc",
+    mertonMcCi95: "±CI95",
+    gbmClosedSd: "SD gbm-cf",
+    mertonMcSd: "SD merton-mc",
+    zVsGbmClosed: "z vs gbm-cf"
+  },
+  format: {
+    gbmClosedMean: x => "$" + x.toFixed(2),
+    mertonMcMean: x => "$" + x.toFixed(2),
+    mertonMcCi95: x => "±$" + x.toFixed(2),
+    gbmClosedSd: x => "$" + x.toFixed(2),
+    mertonMcSd: x => "$" + x.toFixed(2),
+    zVsGbmClosed: x => x.toFixed(2),
+  }
+})
+```
+
+_Overlay used: $\lambda_J = 3$/yr, $\mu_J = -0.1$, $\sigma_J = 0.15$
+(set by the CLI's `JUMP_CHECK` constant). Matching means is the
+numerical signature of the compensation identity
+$\mathbb{E}[S_t] = S_0 e^{\mu t}$; widened SDs are the signature that
+jumps are actually firing._
+
+Spot-check on the same run:
+
+```{ojs}
+//| echo: false
+html`<div class="metric-grid">
+  <div class="card"><div class="label">E[S_T] gbm closed</div><div class="value">${run.jumpCheck.terminalSCheck.gbmClosed.toFixed(4)}</div></div>
+  <div class="card"><div class="label">E[S_T] merton mc</div><div class="value">${run.jumpCheck.terminalSCheck.mertonMcMean.toFixed(4)}</div></div>
+  <div class="card"><div class="label">z vs gbm closed</div><div class="value">${run.jumpCheck.terminalSCheck.zVsGbmClosed.toFixed(2)}</div></div>
+</div>`
+```
+
 ### P&L distributions
 
 The table above summarises each book with a handful of statistics. This
