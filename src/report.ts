@@ -1,4 +1,4 @@
-// Assemble the §4 / §5 report table and JSON artifact from a simulation run.
+// Assembles the §4 / §5 report table and JSON artifact from a simulation run.
 
 import type { ClosedForm, McResult } from "./models.ts";
 import { closedForm, simulate } from "./models.ts";
@@ -18,7 +18,7 @@ export interface ModelRow {
   mcMean: number;
   mcSd: number;
   mcCi95: number;
-  /** Difference between MC mean and closed-form mean, in units of MC stderr. */
+  /** (mcMean − closedFormMean) / mcStderr. */
   zScore: number;
   var95: number;
   var99: number;
@@ -42,7 +42,6 @@ export interface Report {
   itSampleHistogram: { edges: number[]; counts: number[] };
   terminalSCheck: { mcMean: number; closedForm: number; zScore: number };
   sampledPaths: number[][];
-  /** Per-path MC samples, sub-sampled for the Observable report. */
   sampleTraces: {
     fee: number[];
     b2b: number[];
@@ -99,7 +98,7 @@ function histogram(
     const v = samples[i] as number;
     let b = Math.floor((v - lo) / width);
     if (b === nBins) b = nBins - 1;
-    counts[b] = (counts[b] ?? 0) + 1;
+    (counts[b] as number)++;
   }
   return { edges, counts };
 }
@@ -129,7 +128,7 @@ export function buildReport(
     makeRow("principal_3b", closed.b2b.mean, closed.b2b.sd, mc.b2b),
     makeRow("principal_3c", closed.partial.mean, closed.partial.sd, mc.partial),
   ];
-  // 3a is deterministic: report with zero-variance closed form and no MC row.
+  // 3a is deterministic: closed-form with zero variance, no MC row.
   rows.unshift({
     name: "principal_3a",
     closedFormMean: closed.matched.mean,
@@ -153,7 +152,6 @@ export function buildReport(
     if (v > ddMax) ddMax = v;
   }
 
-  // Sanity: E[S_T] should equal S_0 · e^{μT}.
   const stStats = summarize(mc.terminalS);
   const stClosed = params.S0 * Math.exp(params.mu * params.T);
   const stZ = stStats.stderr > 0 ? (stStats.mean - stClosed) / stStats.stderr : 0;

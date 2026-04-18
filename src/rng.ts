@@ -1,8 +1,4 @@
-// Deterministic, dependency-free RNG and standard-normal sampler.
-//
-// Mulberry32 is a 32-bit state PRNG with a period of 2^32 and good
-// statistical properties for Monte Carlo work at this scale. Box-Muller
-// maps two uniforms on (0, 1) to two i.i.d. standard normals.
+// Seeded Mulberry32 PRNG with Box-Muller standard-normal sampling.
 
 export interface Rng {
   uniform(): number;
@@ -18,7 +14,7 @@ export function mulberry32(seed: number): Rng {
     let t = state;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    // Map to (0, 1): strictly exclude 0 so log() is safe for Box-Muller.
+    // Clamp away from 0 so Box-Muller's log() is safe.
     const u = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     return u === 0 ? 1 / 4294967296 : u;
   };

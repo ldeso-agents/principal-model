@@ -1,6 +1,4 @@
-// Per-model P&L: closed-form moments plus Monte Carlo samples.
-//
-// Notation and formulas follow research-note.md §2, §3, §5.
+// Per-model P&L closed-form moments and Monte Carlo sampler. See §2, §3, §5.
 
 import { samplePath } from "./gbm.ts";
 import { gbmMoments, expm1OverX } from "./moments.ts";
@@ -9,17 +7,12 @@ import { mulberry32 } from "./rng.ts";
 import { shortfallVsSchedule } from "./risk.ts";
 
 export interface ClosedForm {
-  /** Fee revenue R_fee. */
   fee: { mean: number; variance: number; sd: number };
-  /** 3a matched P&L — deterministic. */
   matched: { mean: number; variance: 0; sd: 0 };
-  /** 3b back-to-back P&L. */
   b2b: { mean: number; variance: number; sd: number };
-  /** 3c partial pre-purchase P&L at `params.alpha`. */
   partial: { mean: number; variance: number; sd: number };
-  /** Break-even quote Q* that equalises E[Π_b2b] with E[R_fee]. */
+  /** Break-even quote equalising E[Π_b2b] with E[R_fee]. */
   QStar: number;
-  /** Expected I_T, variance of I_T. */
   IT: { mean: number; variance: number };
   /** Inventory notional N = λ · T. */
   N: number;
@@ -40,8 +33,7 @@ export function closedForm(p: Params): ClosedForm {
   const partialMean = (1 - p.alpha) * b2bMean + p.alpha * matchedMean;
   const partialVar = (1 - p.alpha) ** 2 * b2bVar;
 
-  // Q* = (1 + f) · P · E[I_T] / T = (1 + f) · P · S_0 · (e^{μT} − 1) / (μ T),
-  // using expm1OverX so the μ → 0 limit Q* = (1 + f) · P · S_0 is clean.
+  // Q* = (1 + f) · P · S_0 · (e^{μT} − 1)/(μT); expm1OverX handles μ → 0.
   const QStar = (1 + p.f) * p.P * p.S0 * expm1OverX(p.mu * p.T);
 
   return {
@@ -60,29 +52,24 @@ export function closedForm(p: Params): ClosedForm {
 }
 
 export interface McSamples {
-  /** R_fee sample. */
   fee: Float64Array;
-  /** Π_b2b sample. */
   b2b: Float64Array;
-  /** Π_α sample at params.alpha. */
   partial: Float64Array;
-  /** Π_matched — deterministic; returned for table symmetry. */
+  /** Deterministic; returned scalar for table symmetry. */
   matched: number;
-  /** I_T sample — the shared random kernel. */
+  /** Shared random kernel I_T. */
   IT: Float64Array;
-  /** max_{t ≤ T} (V_0 − V_t) per path for 3a. */
+  /** max_{t ≤ T} shortfall-vs-schedule per path (3a). */
   navDrawdowns: Float64Array;
-  /** Terminal S_T per path, for sanity tests. */
   terminalS: Float64Array;
 }
 
 export interface SampleOpts {
-  /** Number of full paths to retain (for the report's sparkline). Capped by nPaths. */
+  /** Full paths retained for plotting; capped by nPaths. */
   keepPaths?: number;
 }
 
 export interface McResult extends McSamples {
-  /** Subset of full price paths retained for plotting. */
   sampledPaths: Float64Array[];
 }
 
