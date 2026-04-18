@@ -302,9 +302,10 @@ buildDate = {
 
 ::: {.pc-controls}
 The drawn-curve scenario depends on the inventory, contract, and
-horizon sliders below. Drift $\mu$ and variance $\sigma^2$ are fixed at
-the Phase C defaults ($\mu = 0.05$, $\sigma^2 = 0.25$) for the
-comparison MC — open [Phase C](phase-c.qmd) to vary those.
+horizon sliders below. Drift $\mu$, variance $\sigma^2$, and jump
+parameters ($\lambda_J$, $\mu_J$, $\sigma_J$) are fixed at the Phase C
+defaults ($\mu = 0.05$, $\sigma^2 = 0.25$, no jumps) for the comparison
+MC — open [Phase C](phase-c.qmd) to vary those.
 
 ### Price process
 
@@ -1109,8 +1110,8 @@ Inputs.table(customRows, {
 _The **drawn** column is the deterministic P&L implied by the trajectory
 you sketched; the **MC mean** column is $\mathbb{E}[\Pi]$ from a
 self-contained Monte Carlo at the Phase C defaults ($\mu = 0.05$,
-$\sigma^2 = 0.25$, 5,000 paths); the **diff** shows how this specific
-scenario compares to the average across random GBM futures._
+$\sigma^2 = 0.25$, no jumps, 5,000 paths); the **diff** shows how this
+specific scenario compares to the average across random GBM futures._
 
 **How to use this table.**
 
@@ -1141,11 +1142,12 @@ scenario compares to the average across random GBM futures._
 
 What the current research programme does *not* cover (yet):
 
-- **Price dynamics are GBM.** Jump-diffusion, regime switching,
-  Poisson retirement flow, historical calibration of $(\mu, \sigma)$
-  against a kVCM proxy, and dynamic hedging strategies are the Phase C
-  roadmap. Each will swap in behind the same UI on [Phase
-  C](phase-c.qmd).
+- **Price dynamics are GBM with an optional Merton jump-diffusion
+  overlay.** The jump sliders are now live on [Phase C](phase-c.qmd);
+  regime switching, Poisson retirement flow, historical calibration of
+  $(\mu, \sigma)$ against a kVCM proxy, and dynamic hedging strategies
+  are the remaining Phase C roadmap items. Each will swap in behind
+  the same UI.
 - **Gas, slippage, and discounting are not modelled.** Each introduces
   a small correction to the book formulas (typically a few percent),
   not a qualitative change in shape. They are not yet exposed in the
@@ -1165,10 +1167,11 @@ What the current research programme does *not* cover (yet):
   duplicated inline port. A given `(seed, inputs)` pair is
   deterministic across reloads — both for the Monte Carlo and for the
   noise overlay on the drawn curve.
-- **What is still Phase B under the hood.** GBM dynamics and
-  deterministic retirement flow. Phase C iterations will replace these
-  with jump-diffusion, regime switching, and Poisson demand while
-  keeping the same UI and book definitions.
+- **What is still Phase B under the hood.** Deterministic retirement
+  flow. (GBM dynamics now have an optional jump-diffusion overlay on
+  [Phase C](phase-c.qmd).) Future Phase C iterations will replace the
+  remaining simplifications — regime switching and Poisson demand —
+  while keeping the same UI and book definitions.
 - **Why the simulator code is duplicated here.** The drawn-curve
   comparison column needs live Monte Carlo means, and future scenarios
   (jump-diffusion, regime switching) will not have closed-form anchors

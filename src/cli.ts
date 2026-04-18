@@ -20,6 +20,9 @@ const FLAG_TO_PARAM: Record<string, keyof Params> = {
   Q: "Q",
   f: "f",
   T: "T",
+  lambdaJ: "lambdaJ",
+  muJ: "muJ",
+  sigmaJ: "sigmaJ",
 };
 
 interface CliArgs {
@@ -65,6 +68,12 @@ function printMainTable(params: Params): ReturnType<typeof buildReport> {
       `  α=${params.alpha}  N_paths=${params.nPaths}  N_steps=${params.nSteps}` +
       `  seed=${params.seed}`,
   );
+  if (params.lambdaJ > 0) {
+    console.log(
+      `  jumps: λ_J=${params.lambdaJ}  μ_J=${params.muJ}  σ_J=${params.sigmaJ}` +
+        `  (closed-form SD columns remain the GBM anchor)`,
+    );
+  }
 
   console.log(`\n§4 — P&L moments, closed-form vs MC`);
   console.log(

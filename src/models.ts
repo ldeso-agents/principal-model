@@ -18,6 +18,12 @@ export interface ClosedForm {
   N: number;
 }
 
+// Closed-form moments are derived under pure GBM. Under compensated Merton
+// jump-diffusion (λ_J > 0) E[I_T] is invariant — the compensation cancels
+// jumps' mean effect — so fee/b2b/partial *means* and Q* are still exact.
+// Var[I_T] does change under jumps; the variance figures below remain the
+// GBM anchor, and the MC path (src/gbm.ts samplePath) is authoritative for
+// the true jump-aware variance and tail metrics.
 export function closedForm(p: Params): ClosedForm {
   const N = p.lambda * p.T;
   const { mean: eIt, variance: vIt } = gbmMoments(p.S0, p.mu, p.sigma, p.T);
@@ -98,6 +104,9 @@ export function simulate(p: Params, opts: SampleOpts = {}): McResult {
       sigma: p.sigma,
       T: p.T,
       nSteps: p.nSteps,
+      lambdaJ: p.lambdaJ,
+      muJ: p.muJ,
+      sigmaJ: p.sigmaJ,
     });
     IT[i] = path.IT;
     terminalS[i] = path.S[p.nSteps] as number;

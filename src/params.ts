@@ -18,6 +18,13 @@ export interface Params {
   /** Pre-purchase fraction for 3c ∈ [0, 1]; α = 1 ↔ 3a, α = 0 ↔ 3b. */
   alpha: number;
 
+  /** Merton jump intensity (expected jumps per unit time). 0 ⇒ pure GBM. */
+  lambdaJ: number;
+  /** Mean of log-jump size. */
+  muJ: number;
+  /** SD of log-jump size. */
+  sigmaJ: number;
+
   nPaths: number;
   nSteps: number;
   seed: number;
@@ -33,6 +40,10 @@ export const defaultParams: Params = {
   f: 0.05,
   Q: 1.08,
   alpha: 0.5,
+
+  lambdaJ: 0,
+  muJ: 0,
+  sigmaJ: 0,
 
   nPaths: 100_000,
   nSteps: 250,

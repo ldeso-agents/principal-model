@@ -10,13 +10,14 @@ Phase A).
 - **Phase C** is a browser-native interactive simulator
   ([`report/phase-c.qmd`](report/phase-c.qmd)). Every slider re-runs a
   fresh Monte Carlo on the parameters of your choosing (starting kVCM
-  price, starting carbon price per tonne, drift and variance, initial
+  price, starting carbon price per tonne, drift and variance, optional
+  Merton jump-diffusion overlay via three jump sliders, initial
   inventory as tokens + cost basis, constant retirements per day), and a
   drawable custom-curve scenario (with an Alchemy-fed historical preset)
   evaluates the three books on a single user-sketched path. Subsequent
-  Phase C iterations will swap in richer dynamics (jump diffusion,
-  regime switching, Poisson demand, full calibration, dynamic hedging)
-  behind the same UI.
+  Phase C iterations will swap in the remaining richer dynamics (regime
+  switching, Poisson demand, full calibration, dynamic hedging) behind
+  the same UI.
 
 ## Requirements
 
@@ -61,6 +62,7 @@ Artifacts are written to `report/data/`:
 | `--alpha x` | override $\alpha$ |
 | `--mu x` / `--sigma x` | override $\mu$, $\sigma$ |
 | `--f x` / `--Q x` / `--T x` | override fee, quote, horizon |
+| `--lambdaJ x` / `--muJ x` / `--sigmaJ x` | Merton jump params (default 0 ⇒ pure GBM) |
 | `--sweep` | additionally write `sweep.json` |
 
 ## Interactive report
@@ -79,16 +81,16 @@ quarto preview report/phase-c.qmd
 
 ```
 src/
-  rng.ts                     seeded Mulberry32 + Box-Muller
+  rng.ts                     seeded Mulberry32 + Box-Muller + Knuth Poisson
   moments.ts                 Dufresne E[I_T], Var[I_T] with μ→0 limit
-  gbm.ts                     log-exact GBM stepper + trapezoidal I_T
+  gbm.ts                     log-exact GBM stepper + trapezoidal I_T, optional Merton jumps
   risk.ts                    quantile, VaR, CVaR, shortfall-vs-schedule
   params.ts                  typed Params + defaults
   models.ts                  closed-form + MC for fee, 3a, 3b, 3c; break-even Q*
   report.ts                  §4/§5 table assembly + histograms
   cli.ts                     entrypoint — prints tables, writes JSON
   fetch-historical-price.ts  Alchemy Prices pull for the Phase C historical preset
-test/                        vitest unit + cross-check suite (39 tests)
+test/                        vitest unit + cross-check suite (43 tests)
 report/
   index.qmd                  landing page linking Phases A / B / C
   phase-a.qmd                includes research-note.md (Phase A)

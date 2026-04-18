@@ -3,6 +3,8 @@
 export interface Rng {
   uniform(): number;
   normal(): number;
+  /** Non-negative integer count ~ Poisson(lambda). lambda must be ≥ 0. */
+  poisson(lambda: number): number;
 }
 
 export function mulberry32(seed: number): Rng {
@@ -33,5 +35,20 @@ export function mulberry32(seed: number): Rng {
     return r * Math.cos(theta);
   };
 
-  return { uniform, normal };
+  // Knuth's product-of-uniforms Poisson sampler. Exact for any λ ≥ 0; the
+  // loop-expected iteration count is λ + 1. Callers in this repo use
+  // λ = λ_J · dt which is tiny (≪ 1) per step, so the branch is fine.
+  const poisson = (lambda: number): number => {
+    if (!(lambda > 0)) return 0;
+    const L = Math.exp(-lambda);
+    let k = 0;
+    let p = 1;
+    for (;;) {
+      k++;
+      p *= uniform();
+      if (p <= L) return k - 1;
+    }
+  };
+
+  return { uniform, normal, poisson };
 }
