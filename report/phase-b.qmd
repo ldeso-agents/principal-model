@@ -837,38 +837,6 @@ report later.
   so it is never negative — its VaR/CVaR as printed are the *low end*
   of revenue, not a loss against zero.
 
-**On the business take-aways:**
-
-- The fee book has revenue that is always $\geq 0$ but strictly dependent
-  on token price: when the token is cheap, revenue is small. No
-  catastrophe, but no upside beyond the fee markup either.
-- The unhedged principal book (3b) has a capped upside and an
-  unbounded downside. It is structurally short the token. The more
-  the operator believes the token will rally, the worse this model
-  looks — and the break-even quote $Q^*$ plot above makes that
-  explicit.
-- Pre-buying tokens (moving $\alpha$ from 0 toward 1) is the natural hedge
-  for the principal book: variance shrinks as $(1-\alpha)^2$, so even a
-  modest $\alpha$ buys a disproportionate reduction in tail risk. But
-  pre-buying ties up capital ($\alpha \cdot N \cdot P \cdot S_0$) and introduces
-  interim NAV drawdown risk — quantified in the §3a plots.
-- At $Q = Q^*$, the fee book and the back-to-back principal book have
-  equal *expected* P&L but very different distributions. The
-  principal book trades its mean preservation for a left-skewed loss
-  tail. This asymmetry is the single most important thing the report
-  is trying to show.
-
-**On what this notebook does *not* do:**
-
-- This notebook is Phase B. [Phase C](phase-c.qmd) extensions (jump
-  diffusion, Poisson demand, historical calibration against a real kVCM
-  proxy, dynamic hedging strategies) are intentionally out of scope
-  here. The current numbers assume idealised GBM price dynamics and a
-  deterministic retirement flow; those assumptions are the cleanest
-  ones under which closed-form results exist and can be cross-checked.
-- Gas, slippage, and discounting are not modelled in the baseline and
-  are not yet exposed in the simulator's parameter record
-  (`src/params.ts`); they are deferred to Phase C.
-- Nothing here is financial advice or a calibration against any real
-  token. Use the framework; plug in your own $(\mu, \sigma)$ calibrated from
-  data before making any business decision.
+For cross-phase business take-aways, scope caveats, and a drawable
+price-curve stress-test tool, see the [Conclusions](conclusions.qmd)
+page.

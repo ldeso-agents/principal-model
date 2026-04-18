@@ -17,6 +17,8 @@ website:
         text: Phase B — Simulator
       - href: phase-c.qmd
         text: Phase C — Interactive
+      - href: conclusions.qmd
+        text: Conclusions
 
 format:
   html:

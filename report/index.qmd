@@ -47,6 +47,17 @@ the scaffolding for the jump-diffusion and calibration work to come.
 [Launch the interactive sim →](phase-c.qmd)
 :::
 
+::: {.g-col-12 .g-col-md-6}
+### [Conclusions](conclusions.qmd)
+
+Cross-phase take-aways, scope caveats, and a drawable price-curve tool
+for deterministic stress-tests: sketch a crash, a spike, or load the
+historical kVCM series and read the three books' P&L straight off the
+curve.
+
+[Read the synthesis →](conclusions.qmd)
+:::
+
 :::
 
 ## Source
@@ -58,4 +69,6 @@ the scaffolding for the jump-diffusion and calibration work to come.
 The [Phase C interactive simulator](phase-c.qmd) is live today on the
 baseline GBM model; its price dynamics and demand model will be upgraded
 iteratively (jump-diffusion, Poisson demand, calibration, dynamic
-hedging) behind the same UI.
+hedging) behind the same UI. The
+[Conclusions](conclusions.qmd) page collects the cross-phase
+take-aways, the scope caveats, and a deterministic stress-test tool.
