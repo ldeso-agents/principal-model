@@ -1,6 +1,3 @@
-// CLI entrypoint: runs the simulator, prints the §4 / §5 tables, and
-// writes JSON artifacts consumed by report/phase-b.qmd.
-
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,51 +10,41 @@ import { defaultParams, withOverrides } from "./params.ts";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(HERE, "..", "report", "data");
 
+const FLAG_TO_PARAM: Record<string, keyof Params> = {
+  seed: "seed",
+  paths: "nPaths",
+  steps: "nSteps",
+  alpha: "alpha",
+  mu: "mu",
+  sigma: "sigma",
+  Q: "Q",
+  f: "f",
+  T: "T",
+};
+
 interface CliArgs {
-  seed?: number;
-  paths?: number;
-  steps?: number;
-  alpha?: number;
-  mu?: number;
-  sigma?: number;
-  Q?: number;
-  f?: number;
-  T?: number;
-  sweep?: boolean;
-  output?: string;
+  overrides: Partial<Params>;
+  sweep: boolean;
 }
 
 function parseArgs(argv: string[]): CliArgs {
-  const out: CliArgs = {};
+  const overrides: Partial<Params> = {};
+  let sweep = false;
   for (let i = 0; i < argv.length; i++) {
     const tok = argv[i];
     if (tok === "--sweep") {
-      out.sweep = true;
+      sweep = true;
       continue;
     }
-    if (tok && tok.startsWith("--")) {
-      const key = tok.slice(2);
-      const val = argv[++i];
-      if (val === undefined) throw new Error(`missing value for --${key}`);
-      if (key === "output") out.output = val;
-      else (out as Record<string, number>)[key] = Number(val);
-    }
+    if (!tok || !tok.startsWith("--")) continue;
+    const key = tok.slice(2);
+    const val = argv[++i];
+    if (val === undefined) throw new Error(`missing value for --${key}`);
+    const field = FLAG_TO_PARAM[key];
+    if (!field) throw new Error(`unknown flag --${key}`);
+    overrides[field] = Number(val);
   }
-  return out;
-}
-
-function overrides(args: CliArgs): Partial<Params> {
-  const o: Partial<Params> = {};
-  if (args.seed !== undefined) o.seed = args.seed;
-  if (args.paths !== undefined) o.nPaths = args.paths;
-  if (args.steps !== undefined) o.nSteps = args.steps;
-  if (args.alpha !== undefined) o.alpha = args.alpha;
-  if (args.mu !== undefined) o.mu = args.mu;
-  if (args.sigma !== undefined) o.sigma = args.sigma;
-  if (args.Q !== undefined) o.Q = args.Q;
-  if (args.f !== undefined) o.f = args.f;
-  if (args.T !== undefined) o.T = args.T;
-  return o;
+  return { overrides, sweep };
 }
 
 function fmt(x: number, digits = 3): string {
@@ -136,28 +123,27 @@ function printMainTable(params: Params): ReturnType<typeof buildReport> {
   return report;
 }
 
-function runSweep(baseParams: Params): unknown {
-  // Grid over α, μ, σ with fewer paths for speed — the sweep drives the
-  // Observable report's sliders, not the publishable single-run table.
-  const alphas = [0, 0.25, 0.5, 0.75, 1];
-  const mus = [-0.1, 0, 0.05, 0.1, 0.2];
-  const sigmas = [0.2, 0.5, 0.8, 1.2];
-  const sweepParams = withOverrides(baseParams, { nPaths: 20_000, nSteps: 100 });
+// Sweep grid driving the Observable report's sliders; fewer paths for speed.
+const SWEEP_ALPHAS = [0, 0.25, 0.5, 0.75, 1];
+const SWEEP_MUS = [-0.1, 0, 0.05, 0.1, 0.2];
+const SWEEP_SIGMAS = [0.2, 0.5, 0.8, 1.2];
 
+function runSweep(baseParams: Params): unknown {
+  const sweepParams = withOverrides(baseParams, { nPaths: 20_000, nSteps: 100 });
   const cells: unknown[] = [];
-  for (const alpha of alphas) {
-    for (const mu of mus) {
-      for (const sigma of sigmas) {
+  for (const alpha of SWEEP_ALPHAS) {
+    for (const mu of SWEEP_MUS) {
+      for (const sigma of SWEEP_SIGMAS) {
         const p = withOverrides(sweepParams, { alpha, mu, sigma });
         const r = buildReport(p, { keepPaths: 0, traceSize: 0, histBins: 40 });
         cells.push({
           alpha,
           mu,
           sigma,
-          fee: extractRowMetrics(r.rows,"fee"),
-          b2b: extractRowMetrics(r.rows,"principal_3b"),
-          matched: extractRowMetrics(r.rows,"principal_3a"),
-          partial: extractRowMetrics(r.rows,"principal_3c"),
+          fee: extractRowMetrics(r.rows, "fee"),
+          b2b: extractRowMetrics(r.rows, "principal_3b"),
+          matched: extractRowMetrics(r.rows, "principal_3a"),
+          partial: extractRowMetrics(r.rows, "principal_3c"),
           drawdown: r.drawdown,
           QStar: r.closed.QStar,
         });
@@ -165,7 +151,7 @@ function runSweep(baseParams: Params): unknown {
     }
   }
   return {
-    grid: { alphas, mus, sigmas },
+    grid: { alphas: SWEEP_ALPHAS, mus: SWEEP_MUS, sigmas: SWEEP_SIGMAS },
     base: sweepParams,
     cells,
   };
@@ -189,14 +175,16 @@ function extractRowMetrics(
   };
 }
 
+const QSTAR_MUS = [-0.1, -0.05, 0, 0.05, 0.1, 0.15, 0.2];
+const QSTAR_TS = [0.25, 0.5, 1, 2, 3];
+
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
-  const params = withOverrides(defaultParams, overrides(args));
+  const params = withOverrides(defaultParams, args.overrides);
 
   mkdirSync(DATA_DIR, { recursive: true });
 
   const run = printMainTable(params);
-  // Strip typed arrays to plain arrays for JSON.
   const runJson = resolve(DATA_DIR, `run-${params.seed}.json`);
   writeFileSync(runJson, JSON.stringify(run, null, 2));
   console.log(`\nwrote ${runJson}`);
@@ -209,24 +197,13 @@ function main(): void {
     console.log(`wrote ${sweepPath}`);
   }
 
-  // Closed-form-only small artifact for the notebook's Q* plot.
-  const qSurface: {
-    mus: number[];
-    Ts: number[];
-    values: number[][];
-  } = {
-    mus: [-0.1, -0.05, 0, 0.05, 0.1, 0.15, 0.2],
-    Ts: [0.25, 0.5, 1, 2, 3],
-    values: [],
+  const qSurface = {
+    mus: QSTAR_MUS,
+    Ts: QSTAR_TS,
+    values: QSTAR_MUS.map((mu) =>
+      QSTAR_TS.map((T) => closedForm(withOverrides(params, { mu, T })).QStar),
+    ),
   };
-  for (const mu of qSurface.mus) {
-    const row: number[] = [];
-    for (const T of qSurface.Ts) {
-      const cf = closedForm(withOverrides(params, { mu, T }));
-      row.push(cf.QStar);
-    }
-    qSurface.values.push(row);
-  }
   const qPath = resolve(DATA_DIR, "qstar-surface.json");
   writeFileSync(qPath, JSON.stringify(qSurface, null, 2));
   console.log(`wrote ${qPath}`);

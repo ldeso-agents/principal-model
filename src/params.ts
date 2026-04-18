@@ -1,32 +1,25 @@
-// Typed parameter record for the simulator and a default instance.
-//
-// Symbols follow research-note.md §1.
-
 export interface Params {
   /** kVCM/USD spot at t=0. */
   S0: number;
-  /** GBM drift, annualised. */
+  /** GBM drift (annualised). */
   mu: number;
-  /** GBM volatility, annualised. */
+  /** GBM volatility (annualised). */
   sigma: number;
-  /** Protocol price (kVCM per tonne), constant. */
+  /** Protocol price kVCM/tonne, constant. */
   P: number;
-  /** Retirement flow, tonnes / unit time. */
+  /** Retirement flow, tonnes per unit time. */
   lambda: number;
-  /** Horizon in same time unit as μ, σ, λ. */
+  /** Horizon (same time unit as μ, σ, λ). */
   T: number;
-  /** Fee rate (e.g. 0.05 for 5%). */
+  /** Fee rate. */
   f: number;
-  /** Fixed USD quote per tonne for the principal model. */
+  /** Fixed USD quote per tonne (principal model). */
   Q: number;
-  /** Pre-purchase fraction for 3c ∈ [0, 1]. α = 1 ↔ 3a; α = 0 ↔ 3b. */
+  /** Pre-purchase fraction for 3c ∈ [0, 1]; α = 1 ↔ 3a, α = 0 ↔ 3b. */
   alpha: number;
 
-  /** Number of Monte Carlo paths. */
   nPaths: number;
-  /** Number of time steps per path. */
   nSteps: number;
-  /** PRNG seed. */
   seed: number;
 }
 
@@ -46,7 +39,6 @@ export const defaultParams: Params = {
   seed: 42,
 };
 
-/** Build a params record from `defaults` overlaid with `overrides`. */
 export function withOverrides(
   defaults: Params,
   overrides: Partial<Params>,

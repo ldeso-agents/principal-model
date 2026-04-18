@@ -1,6 +1,4 @@
-// Build-time fetch of the historical kVCM spot price via the Alchemy
-// Prices API. Emits report/data/kvcm-historical.json, consumed by
-// report/phase-c.qmd's "Historical" custom-curve preset.
+// Fetches the kVCM spot history via Alchemy's Prices API into report/data/.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -13,7 +11,7 @@ const OUT_PATH = resolve(DATA_DIR, "kvcm-historical.json");
 const ADDRESS = "0x00fbac94fec8d4089d3fe979f39454f48c71a65d";
 const NETWORK = "base-mainnet";
 const INTERVAL = "1d";
-// Alchemy's 1d interval is capped at 365 points per request.
+// Alchemy caps the 1d interval at 365 points per request.
 const WINDOW_DAYS = 365;
 
 interface AlchemyPoint {

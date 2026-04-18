@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { samplePath, sampleTerminal } from "../src/gbm.ts";
+import { samplePath } from "../src/gbm.ts";
 import { expectedIt, varianceIt } from "../src/moments.ts";
 import { mulberry32 } from "../src/rng.ts";
 import { summarize } from "../src/risk.ts";
@@ -27,15 +27,17 @@ describe("samplePath", () => {
   it("terminal mean matches S_0 · e^{μT}", () => {
     const rng = mulberry32(2025);
     const n = 50_000;
+    const nSteps = 50;
     const samples = new Float64Array(n);
     for (let i = 0; i < n; i++) {
-      samples[i] = sampleTerminal(rng, {
+      const path = samplePath(rng, {
         S0: 1,
         mu: 0.1,
         sigma: 0.4,
         T: 1,
-        nSteps: 50,
+        nSteps,
       });
+      samples[i] = path.S[nSteps] as number;
     }
     const stats = summarize(samples);
     const expected = Math.exp(0.1);
