@@ -1,21 +1,20 @@
 ---
-title: "Phase C — Interactive simulator"
-subtitle: "Live Monte Carlo on parameters of your choosing"
-format:
-  html:
-    toc: true
-    toc-depth: 2
-    theme: cosmo
-    embed-resources: false
-    css: lib/phase-styles.css
-    include-in-header:
-      - text: |
-          <script src="lib/phase-layout.js" defer></script>
+title: Phase C — Interactive simulator
+toc: true
 ---
+
+```ts
+import "./components/phase-layout.ts";
+import { simulate, summarise, expm1OverX, xTicksForHorizon } from "./lib/index.ts";
+```
+
+# Phase C — Interactive simulator
+
+_Live Monte Carlo on parameters of your choosing_
 
 ## What this page is about (for new readers)
 
-The [Phase B notebook](phase-b.qmd) showed the same three business
+The [Phase B notebook](./phase-b) showed the same three business
 designs — fee, fully back-to-back principal, partially pre-hedged
 principal — under a **fixed** menu of parameters. It used a
 pre-computed sweep over $(\alpha, \mu, \sigma)$ and a handful of
@@ -35,30 +34,32 @@ round-trip, no JSON regeneration), so you can:
 
 For a deterministic complement — drawing a specific price trajectory
 and reading its P&L straight off the curve — see the drawn-curve
-scenario tool on the [Conclusions](conclusions.qmd) page.
+scenario tool on the [Conclusions](./conclusions) page.
 
 The underlying price model is Geometric Brownian Motion
-([Phase A](phase-a.qmd) §1) with an optional Merton jump-diffusion
+([Phase A](./phase-a) §1) with an optional Merton jump-diffusion
 overlay (leave the jump sliders at zero to recover pure GBM bit-for-bit)
 and the same deterministic retirement flow. The GBM closed-form
 anchors still apply to the means (the drift is compensated so
 $\mathbb{E}[S_t]$ is unchanged by jumps); subsequent Phase C iterations
 will swap in regime switching and Poisson demand behind the same UI.
 
-::: {.callout-note-lite}
+<div class="callout-note-lite">
+
 **Minimum background to read this page.** Familiarity with Monte Carlo
 simulation and with basic distribution statistics (mean, standard
 deviation, quantiles) is helpful. Every plot below has a "how to read
 it" paragraph that states what a good-looking output looks like and
 what a suspicious one would look like. If you want the underlying
-formulas, the [Phase A note](phase-a.qmd) is the primary reference and
-the [Phase B page](phase-b.qmd) carries the worked examples.
-:::
+formulas, the [Phase A note](./phase-a) is the primary reference and
+the [Phase B page](./phase-b) carries the worked examples.
+
+</div>
 
 ## Starting Phase C
 
-[Phase B](phase-b.qmd) cross-checked the closed-form §1–§5 quantities (see
-the [Phase A note](phase-a.qmd)) against Monte Carlo and exposed a
+[Phase B](./phase-b) cross-checked the closed-form §1–§5 quantities (see
+the [Phase A note](./phase-a)) against Monte Carlo and exposed a
 **pre-baked** sweep over $(\alpha, \mu, \sigma)$ through the Observable
 notebook. Phase C extends the modelling menu — jump diffusion, regime
 switching, Poisson retirements, historical calibration, dynamic hedging —
@@ -67,7 +68,7 @@ simulator live on parameters of our choosing**, not just a pre-computed grid.
 
 This page is that scaffolding. Every slider below triggers a fresh Monte
 Carlo in the browser (no server round-trip, no artifact regeneration). The
-baseline price process is the same GBM used in [Phase B](phase-b.qmd),
+baseline price process is the same GBM used in [Phase B](./phase-b),
 now with an optional Merton jump-diffusion overlay exposed through three
 jump sliders (leave them at zero to recover pure GBM); subsequent Phase
 C iterations will swap in the remaining richer dynamics behind the same
@@ -91,11 +92,11 @@ This page has two blocks, in reading order:
 
 For a deterministic-scenario complement — fix **one** specific
 trajectory by sketching it and read the three books' P&L on that exact
-curve — see the [Conclusions](conclusions.qmd) page.
+curve — see the [Conclusions](./conclusions) page.
 
-::: {.callout-note appearance="simple"}
-## What changes vs. [Phase B](phase-b.qmd)
+<div class="callout-note-lite">
 
+**What changes vs. [Phase B](./phase-b).**
 The pre-purchase hedge is now specified by the **raw inventory state** —
 a number of kVCM tokens and their USD cost basis — instead of the ratio
 $\alpha$. This removes the Phase B assumption that the tokens were
@@ -114,12 +115,13 @@ becomes visible in the summary table below: running the same $(\mu,
 \sigma, T, \lambda, Q, f)$ with different inventory basis leaves the
 SD, VaR, and CVaR of the custom-principal book unchanged and shifts
 only the mean.
-:::
+
+</div>
 
 ### Mini-glossary
 
 Three concepts recur throughout this page. If you've read the
-[Phase B mini-glossary](phase-b.qmd), the first two are unchanged; the
+[Phase B mini-glossary](./phase-b), the first two are unchanged; the
 third is the new Phase C concept.
 
 - **Geometric Brownian Motion (GBM).** A standard model for prices
@@ -147,7 +149,7 @@ third is the new Phase C concept.
 ### Notation cheat-sheet
 
 A brief reminder of the symbols used on this page (full derivations in
-the [Phase A note](phase-a.qmd) §1–§5; Phase B uses the same symbols
+the [Phase A note](./phase-a) §1–§5; Phase B uses the same symbols
 with $\alpha$ taking the role of the inventory state). Read the table
 once top-to-bottom the first time you open this page; after that, the
 formulas should parse on sight.
@@ -199,9 +201,10 @@ Quick reading guide for the Phase-C-specific symbols:
   different flavour of exposure from the undersupply one, but still
   random.
 
-:::: {.pc-section}
+<div class="pc-section">
 
-::: {.pc-controls}
+<div class="pc-controls">
+
 ### Price process
 
 Sets the four numbers that define the GBM model of the token price.
@@ -211,24 +214,24 @@ the same price expressed in **kVCM per tonne** (the protocol constant
 today's spot $S_0 = \pi_0 / P$. $\mu$ and $\sigma^2$ are the
 annualised expected return and variance of the log-price.
 
-```{ojs}
-//| echo: false
-viewof pi0 = Inputs.range([0, 500], { step: 1, value: 125, label: "π₀ (USD / tonne)" })
+```ts
+const pi0Input = Inputs.range([0, 500], { step: 1, value: 125, label: "π₀ (USD / tonne)" });
+const pi0 = view(pi0Input);
 ```
 
-```{ojs}
-//| echo: false
-viewof P = Inputs.range([100, 25000], { step: 10, value: 2160, label: "P (kVCM / tonne)" })
+```ts
+const PInput = Inputs.range([100, 25000], { step: 10, value: 2160, label: "P (kVCM / tonne)" });
+const P = view(PInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof mu = Inputs.range([-1, 1], { step: 0.005, value: -0.1, label: "drift μ (annualised)" })
+```ts
+const muInput = Inputs.range([-1, 1], { step: 0.005, value: -0.1, label: "drift μ (annualised)" });
+const mu = view(muInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof sigma2 = Inputs.range([0, 3], { step: 0.005, value: 0.06, label: "variance σ² (annualised)" })
+```ts
+const sigma2Input = Inputs.range([0, 3], { step: 0.005, value: 0.06, label: "variance σ² (annualised)" });
+const sigma2 = view(sigma2Input);
 ```
 
 ### Jumps (Merton)
@@ -242,19 +245,19 @@ stays put regardless of the jump settings — jumps widen the
 distribution without relocating it. Leaving $\lambda_J = 0$ collapses
 to pure GBM.
 
-```{ojs}
-//| echo: false
-viewof lambdaJ = Inputs.range([0, 50], { step: 0.1, value: 20, label: "jump intensity λ_J (/yr)" })
+```ts
+const lambdaJInput = Inputs.range([0, 50], { step: 0.1, value: 20, label: "jump intensity λ_J (/yr)" });
+const lambdaJ = view(lambdaJInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof muJ = Inputs.range([-0.5, 0.5], { step: 0.01, value: -0.05, label: "mean log-jump μ_J" })
+```ts
+const muJInput = Inputs.range([-0.5, 0.5], { step: 0.01, value: -0.05, label: "mean log-jump μ_J" });
+const muJ = view(muJInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof sigmaJ = Inputs.range([0, 1], { step: 0.01, value: 0.35, label: "log-jump SD σ_J" })
+```ts
+const sigmaJInput = Inputs.range([0, 1], { step: 0.01, value: 0.35, label: "log-jump SD σ_J" });
+const sigmaJ = view(sigmaJInput);
 ```
 
 ### Demand & inventory
@@ -264,19 +267,19 @@ starting inventory state $(k,\, C_{\mathrm{basis}})$. Coverage of the
 horizon by the inventory is computed automatically and shown in the
 live readout below.
 
-```{ojs}
-//| echo: false
-viewof lambdaDay = Inputs.range([0, 50], { step: 0.1, value: 1, label: "retirements (tonnes / day)" })
+```ts
+const lambdaDayInput = Inputs.range([0, 50], { step: 0.1, value: 1, label: "retirements (tonnes / day)" });
+const lambdaDay = view(lambdaDayInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof kPre = Inputs.range([0, 2000000], { step: 1000, value: 300000, label: "initial inventory (kVCM)" })
+```ts
+const kPreInput = Inputs.range([0, 2000000], { step: 1000, value: 300000, label: "initial inventory (kVCM)" });
+const kPre = view(kPreInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof cBasis = Inputs.range([0, 1000000], { step: 100, value: 21000, label: "inventory basis (USD, total)" })
+```ts
+const cBasisInput = Inputs.range([0, 1000000], { step: 100, value: 21000, label: "inventory basis (USD, total)" });
+const cBasis = view(cBasisInput);
 ```
 
 ### Contract
@@ -285,19 +288,19 @@ Horizon (in calendar days for UI convenience; converted internally to
 years) and the two business levers: the fixed USD quote per tonne $Q$
 of the principal book, and the proportional fee $f$ of the fee book.
 
-```{ojs}
-//| echo: false
-viewof Tdays = Inputs.range([30, 1095], { step: 5, value: 365, label: "horizon T (days)" })
+```ts
+const TdaysInput = Inputs.range([30, 1095], { step: 5, value: 365, label: "horizon T (days)" });
+const Tdays = view(TdaysInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof Q = Inputs.range([0, 1000], { step: 0.5, value: 180, label: "fixed quote Q (USD / tonne)" })
+```ts
+const QInput = Inputs.range([0, 1000], { step: 0.5, value: 180, label: "fixed quote Q (USD / tonne)" });
+const Q = view(QInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof fee = Inputs.range([0, 1], { step: 0.01, value: 0.4, label: "fee rate f" })
+```ts
+const feeInput = Inputs.range([0, 1], { step: 0.01, value: 0.4, label: "fee rate f" });
+const fee = view(feeInput);
 ```
 
 ### Monte Carlo
@@ -307,58 +310,63 @@ many time-steps per trajectory, and the PRNG seed. These are
 **statistical** controls (more paths = tighter estimates), not
 business controls.
 
-```{ojs}
-//| echo: false
-viewof nPaths = Inputs.select([2000, 5000, 10000, 20000, 40000], { value: 5000, label: "paths" })
+```ts
+const nPathsInput = Inputs.select([2000, 5000, 10000, 20000, 40000], { value: 5000, label: "paths" });
+const nPaths = view(nPathsInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof nSteps = Inputs.select([50, 100, 200, 365], { value: 100, label: "steps / path" })
+```ts
+const nStepsInput = Inputs.select([50, 100, 200, 365], { value: 100, label: "steps / path" });
+const nSteps = view(nStepsInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof seed = Inputs.range([1, 9999], { step: 1, value: 42, label: "PRNG seed" })
+```ts
+const seedInput = Inputs.range([1, 9999], { step: 1, value: 42, label: "PRNG seed" });
+const seed = view(seedInput);
 ```
 
-```{ojs}
-//| echo: false
-mcResetButton = {
-  const defaults = {
-    pi0: 125, P: 2160, mu: -0.1, sigma2: 0.06,
-    lambdaJ: 20, muJ: -0.05, sigmaJ: 0.35,
-    lambdaDay: 1, kPre: 300000, cBasis: 21000,
-    Tdays: 365, Q: 180, fee: 0.4,
-    nPaths: 5000, nSteps: 100, seed: 42,
-  };
-  const views = {
-    pi0: viewof pi0, P: viewof P, mu: viewof mu, sigma2: viewof sigma2,
-    lambdaJ: viewof lambdaJ, muJ: viewof muJ, sigmaJ: viewof sigmaJ,
-    lambdaDay: viewof lambdaDay, kPre: viewof kPre, cBasis: viewof cBasis,
-    Tdays: viewof Tdays, Q: viewof Q, fee: viewof fee,
-    nPaths: viewof nPaths, nSteps: viewof nSteps, seed: viewof seed,
-  };
+```ts
+// Reset-to-defaults button. Fires a synthetic input event on each slider
+// so Framework's reactive graph picks up the new values.
+const mcResetButton = (() => {
+  const defaults: Array<[HTMLInputElement, number]> = [
+    [pi0Input as HTMLInputElement, 125],
+    [PInput as HTMLInputElement, 2160],
+    [muInput as HTMLInputElement, -0.1],
+    [sigma2Input as HTMLInputElement, 0.06],
+    [lambdaJInput as HTMLInputElement, 20],
+    [muJInput as HTMLInputElement, -0.05],
+    [sigmaJInput as HTMLInputElement, 0.35],
+    [lambdaDayInput as HTMLInputElement, 1],
+    [kPreInput as HTMLInputElement, 300000],
+    [cBasisInput as HTMLInputElement, 21000],
+    [TdaysInput as HTMLInputElement, 365],
+    [QInput as HTMLInputElement, 180],
+    [feeInput as HTMLInputElement, 0.4],
+    [nPathsInput as HTMLInputElement, 5000],
+    [nStepsInput as HTMLInputElement, 100],
+    [seedInput as HTMLInputElement, 42],
+  ];
   const wrap = document.createElement("div");
   wrap.className = "pc-reset";
   const btn = document.createElement("button");
   btn.type = "button";
   btn.textContent = "Reset to defaults";
   btn.addEventListener("click", () => {
-    for (const k of Object.keys(defaults)) {
-      const el = views[k];
-      el.value = defaults[k];
+    for (const [el, val] of defaults) {
+      (el as any).value = val;
       el.dispatchEvent(new CustomEvent("input", { bubbles: true }));
     }
   });
   wrap.appendChild(btn);
   return wrap;
-}
+})();
+display(mcResetButton);
 ```
 
-:::
+</div>
 
-::: {.pc-main}
+<div class="pc-main">
 
 Drift $\mu$ and variance $\sigma^2$ are annualised. The retirement rate
 $\lambda$ is specified per calendar day; internally we use a year as the
@@ -505,9 +513,8 @@ displaying them is to turn the sliders' raw numbers into quantities
 that appear in the equations — so you can sanity-check the setup
 before looking at the MC output.
 
-```{ojs}
-//| echo: false
-derived = {
+```ts
+const derived = (() => {
   const sigma = Math.sqrt(sigma2);
   const S0 = P > 0 ? pi0 / P : 0;
   const T = Tdays / 365;
@@ -520,11 +527,10 @@ derived = {
   const QStarRatio = expm1OverX(mu * T);
   const QStar = (1 + fee) * P * S0 * QStarRatio;
   return { sigma, S0, T, lambda, N, tokensNeeded, coverageDays, coverageFrac, impliedCost, QStar };
-}
+})();
 ```
 
-```{ojs}
-//| echo: false
+```ts
 html`<div class="phase-c-derived">
   <div class="card"><div class="label">σ (volatility)</div><div class="value">${derived.sigma.toFixed(4)}</div></div>
   <div class="card"><div class="label">S₀ = π₀ / P (USD / kVCM)</div><div class="value">${"$" + derived.S0.toFixed(4)}</div></div>
@@ -575,9 +581,9 @@ html`<div class="phase-c-derived">
   $Q = Q^*$ equalises means; the sections below make clear how
   *distributions* differ despite the matched means.
 
-::: {.callout-note appearance="simple"}
-## Interpreting "coverage"
+<div class="callout-note-lite">
 
+**Interpreting "coverage".**
 If the pre-purchased inventory covers 100% of the horizon's token
 demand, the book is fully matched (§3a-style). Below 100%, the operator
 runs out of inventory part-way through the horizon and has to buy the
@@ -595,14 +601,18 @@ log-normal (an averaging effect), so the shape of the under-hedge
 loss tail is milder than the over-hedge gain/loss tail at the same
 dollar exposure. That asymmetry shows up in the VaR / CVaR columns of
 the summary table below when you push $k$ past $N \cdot P$.
-:::
+
+</div>
 
 ## Core simulator
 
-All cells below are pure JavaScript running in the browser — no server, no
-pre-computed JSON. The simulator is a direct port of `src/rng.ts`,
-`src/gbm.ts`, `src/moments.ts`, and `src/risk.ts`. Keeping it inline lets
-readers audit every calculation in one place.
+All the math below runs in your browser via the TypeScript simulator
+in `src/lib/simulate.ts` (imported at the top of this page together with
+the browser-friendly `summarise` helper). Keeping every step sourced
+from the same typed module that the Phase B data loaders use removes
+the old JS / TS duplication: the numbers in the Phase B `run-42.json`
+are produced by the same `samplePath` recipe this page's live MC
+executes.
 
 ### What the simulator computes, step-by-step
 
@@ -620,7 +630,7 @@ Every slider change triggers the following sequence:
    $Y_j \sim N(\mu_J, \sigma_J^2)$, and
    $\kappa = e^{\mu_J + \sigma_J^2/2} - 1$ is the Merton
    compensation term. With $\lambda_J = 0$ the jump sum is empty and
-   this reduces to the same recipe as `src/gbm.ts`.
+   this reduces to the same recipe as `src/lib/gbm.ts`.
 3. **Accumulate the integrals.** On each trajectory we compute
    (a) the full-horizon integral $I_T = \int_0^T S_t\,dt$ by the
    trapezoid rule, and (b) the tail integral $J_\tau = \int_{\tau
@@ -636,17 +646,6 @@ Every slider change triggers the following sequence:
    trajectories are stored in full; the rest contribute their
    scalar P&L and are discarded to keep memory flat.
 
-The implementation below is deliberately inline and un-minified. It is
-safe to click through every cell: nothing writes to disk, nothing calls
-out to the network, and refreshing the page is a clean reset.
-
-```{ojs}
-//| echo: false
-import {
-  expm1OverX, xTicksForHorizon, simulate, summarise,
-} from "./lib/ojs-helpers.js"
-```
-
 ## Monte Carlo run
 
 This section is the live output of the simulator. The run card just
@@ -661,9 +660,9 @@ still get sub-second updates. If you crank `paths` all the way up to
 40,000 and the page becomes sluggish, you are waiting on the browser
 to re-histogram and re-plot, not on the simulator itself.
 
-::: {.callout-note appearance="simple"}
-## What to expect when you raise $\lambda_J$
+<div class="callout-note-lite">
 
+**What to expect when you raise $\lambda_J$.**
 With the compensated Merton drift, every book's **expected** P&L is
 invariant in $(\lambda_J, \mu_J, \sigma_J)$ — the black mean rule on
 each histogram stays where it is, and the "$\mathbb{E}[\Pi]$ (mc)"
@@ -681,11 +680,11 @@ column barely moves beyond its MC noise band. What does move:
 
 At $\lambda_J = 0$ the page is bit-identical to pure GBM, so use that
 as the anchor when you want to read off the jump contribution.
-:::
 
-```{ojs}
-//| echo: false
-run = {
+</div>
+
+```ts
+const run = (() => {
   const inputs = {
     S0: derived.S0, mu, sigma: derived.sigma, P,
     lambda: derived.lambda, T: derived.T,
@@ -705,11 +704,10 @@ run = {
     b2b: summarise(raw.b2bSamples),
     elapsedMs,
   };
-}
+})();
 ```
 
-```{ojs}
-//| echo: false
+```ts
 html`<div class="phase-c-derived">
   <div class="card"><div class="label">paths simulated</div><div class="value">${nPaths.toLocaleString()}</div></div>
   <div class="card"><div class="label">wall time</div><div class="value">${run.elapsedMs.toFixed(1)} ms</div></div>
@@ -765,17 +763,15 @@ T$ (printed in the derived-quantities card above).
   collapse to the sign of the one deterministic P&L — you should see
   SD approaching zero in the table.
 
-```{ojs}
-//| echo: false
-summaryRows = [
+```ts
+const summaryRows = [
   { book: "fee", ...run.fee },
   { book: "principal (custom)", ...run.principal },
   { book: "principal (back-to-back)", ...run.b2b },
-]
+];
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Inputs.table(summaryRows, {
   columns: ["book","mean","sd","ci95","var95","var99","cvar95","cvar99","probLoss","sharpe"],
   header: {
@@ -840,13 +836,9 @@ What to notice on each panel:
   left-skew. Useful as a visual anchor — the custom panel collapses to
   this one when $k = C_{\mathrm{basis}} = 0$.
 
-```{ojs}
-//| echo: false
-pnlRecords = {
+```ts
+const pnlRecords = (() => {
   const rows = [];
-  const push = (label, arr) => {
-    for (let i = 0; i < arr.length; i++) rows.push({ book: label, pnl: arr[i] });
-  };
   // Subsample for plotting responsiveness.
   const stride = Math.max(1, Math.floor(run.feeSamples.length / 2500));
   for (let i = 0; i < run.feeSamples.length; i += stride) {
@@ -855,11 +847,10 @@ pnlRecords = {
     rows.push({ book: "principal (back-to-back)", pnl: run.b2bSamples[i] });
   }
   return rows;
-}
+})();
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 900,
   height: 440,
@@ -916,9 +907,8 @@ What to look for:
   $\sigma\sqrt{t}$ — this is the visual signature of GBM and a useful
   sanity check on the simulator.
 
-```{ojs}
-//| echo: false
-pathRecords = {
+```ts
+const pathRecords = (() => {
   const rows = [];
   const paths = run.sampledPaths;
   const nS = run.inputs.nSteps;
@@ -933,11 +923,10 @@ pathRecords = {
     }
   }
   return rows;
-}
+})();
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 900,
   height: 340,
@@ -960,9 +949,9 @@ highlighted. Green dashed rule: time at which the pre-purchased inventory
 is exhausted — to the right of this line, retirements are sourced at
 spot._
 
-:::
+</div>
 
-::::
+</div>
 
 ## Take-aways from this page
 
@@ -981,4 +970,4 @@ spot._
 
 For cross-phase business take-aways, scope caveats, implementation
 notes, and a drawable price-curve stress-test tool, see the
-[Conclusions](conclusions.qmd) page.
+[Conclusions](./conclusions) page.

@@ -1,26 +1,12 @@
 ---
-title: "Phase B — Fee vs. Principal Simulator"
-subtitle: "Interactive companion to the research note"
-format:
-  html:
-    page-layout: full
-    toc: true
-    toc-depth: 2
-    theme: cosmo
-    embed-resources: false
+title: Phase B — Fee vs. Principal Simulator
+toc: true
+theme: [air, alt, wide]
 ---
 
-```{=html}
-<style>
-  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
-  .metric-grid .card { border: 1px solid #ddd; border-radius: 6px; padding: 0.75rem; background: #fafafa; }
-  .metric-grid .card .label { font-size: 0.8rem; color: #555; }
-  .metric-grid .card .value { font-family: ui-monospace, monospace; font-size: 1.2rem; }
-  .callout-note-lite { border-left: 3px solid #4c78a8; background: #f3f7fb; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.95rem; }
-  .legend-table { font-size: 0.9rem; margin: 0.5rem 0 1rem; }
-  .legend-table td:first-child { font-family: ui-monospace, monospace; padding-right: 0.8rem; }
-</style>
-```
+# Phase B — Fee vs. Principal Simulator
+
+_Interactive companion to the research note_
 
 ## What this report is about (for new readers)
 
@@ -49,24 +35,26 @@ question for the business is: *given how the token price is expected to move,
 which model makes more money, which one loses more in a bad scenario, and how
 much does pre-buying inventory (the "hedge ratio" $\alpha$) reduce that risk?*
 
-The companion [research note](phase-a.qmd) derives the math. This
+The companion [research note](./phase-a) derives the math. This
 notebook runs the numbers: it simulates thousands of possible futures for the
 token price, computes the company's profit and loss (P&L) in each one, and
 plots the distributions.
 
-::: {.callout-note-lite}
+<div class="callout-note-lite">
+
 **Minimum background to read this page.** Familiarity with probability
 (mean, standard deviation, quantiles) and with Monte Carlo simulation
 helps, but the prose in each section explains what every plot is showing
 and what a "good" or "bad" pattern looks like. Readers who want the
-derivations should keep the [Phase A note](phase-a.qmd) open alongside; readers who just
+derivations should keep the [Phase A note](./phase-a) open alongside; readers who just
 want the business intuition can skim past the equations.
-:::
+
+</div>
 
 ## Overview
 
 This notebook is the **Phase B** companion to the
-[Phase A research note](phase-a.qmd) (the mathematical note). Phase A
+[Phase A research note](./phase-a) (the mathematical note). Phase A
 wrote down closed-form formulas for the
 mean and variance of every book's P&L under a standard price model
 (Geometric Brownian Motion, or GBM — see the next section). Phase B, this
@@ -84,16 +72,13 @@ notebook, has three jobs:
    page is interactive: drag the sliders to see how the tail of the
    principal book responds to drift, volatility, and the hedge ratio.
 
-All Monte Carlo computation happens in TypeScript (`src/`); this page only
-reads the emitted JSON and visualises it. If you are running the report
-locally, regenerate the data before previewing:
+All Monte Carlo computation happens in TypeScript under `src/lib/`; this page
+only reads the emitted JSON and visualises it. Running `npm run dev`
+regenerates the data artifacts on demand via Framework data loaders under
+`src/data/`.
 
-```sh
-npm run simulate -- --seed 42
-npm run sweep -- --seed 42
-```
+<div class="callout-note-lite">
 
-::: {.callout-note-lite}
 **What you will see below.** Four kinds of plots: (1) a scorecard table of
 closed-form vs Monte Carlo P&L moments with tail metrics, (2) overlaid P&L
 distributions for the three stochastic models, (3) diagnostics on the shared
@@ -102,7 +87,8 @@ both the fee and back-to-back books turn out to be linear functions of this
 single quantity, so it is worth looking at directly), and (4) parameter
 sweeps showing how tail risk and the break-even quote $Q^*$ respond to drift
 $\mu$, volatility $\sigma$, and hedge ratio $\alpha$.
-:::
+
+</div>
 
 ### Mini-glossary
 
@@ -128,7 +114,7 @@ repeatedly on this page:
 ### Notation cheat-sheet
 
 A brief reminder of the symbols used throughout (full derivations in the
-[Phase A note](phase-a.qmd) §1–§5). Most symbols have a short English name in
+[Phase A note](./phase-a) §1–§5). Most symbols have a short English name in
 parentheses: read the table once top-to-bottom the first time you use
 this page, and after that the formulas should parse on sight.
 
@@ -175,12 +161,11 @@ distribution the simulator produces for each book. Think of it as the
 "zoomed-in" view. The later parameter-sweep section is the "zoomed-out"
 view across many parameter combinations.
 
-Loaded from `data/run-42.json` — produced by `npm run simulate -- --seed 42`.
+Loaded from `data/run-42.json` — produced by the `src/data/run-42.json.ts`
+Framework data loader (imports `runSingle` from `src/lib/run.ts`).
 
-
-```{ojs}
-//| echo: false
-run = FileAttachment("data/run-42.json").json()
+```ts
+const run = await FileAttachment("data/run-42.json").json();
 ```
 
 ### Run parameters
@@ -203,8 +188,7 @@ computed directly from the other inputs). Some worth flagging:
   expected P&L**, but as §5 below shows, their *distributions* are still
   very different. Matching means does not match risk.
 
-```{ojs}
-//| echo: false
+```ts
 html`<div class="metric-grid">
   <div class="card"><div class="label">Monte Carlo paths</div><div class="value">${run.params.nPaths.toLocaleString()}</div></div>
   <div class="card"><div class="label">Time steps / path</div><div class="value">${run.params.nSteps}</div></div>
@@ -293,8 +277,7 @@ per-tonne).
   `3b`'s by $(1-\alpha)^2$, hence its SD and CVaR smaller by
   $(1-\alpha)$.
 
-```{ojs}
-//| echo: false
+```ts
 Inputs.table(run.rows, {
   columns: ["name","closedFormMean","mcMean","mcCi95","closedFormSd","mcSd","zScore","var95","var99","cvar95","cvar99","probLoss","sharpe"],
   header: {
@@ -332,8 +315,8 @@ Inputs.table(run.rows, {
 ### §6 — Compensated Merton: closed-form means survive jumps
 
 Phase C adds an optional Merton jump-diffusion overlay to the spot
-process (see [Phase C](phase-c.qmd) for the live sliders, and the
-[Phase A note](phase-a.qmd) §6 for the derivation). The key claim:
+process (see [Phase C](./phase-c) for the live sliders, and the
+[Phase A note](./phase-a) §6 for the derivation). The key claim:
 the drift compensation term $-\lambda_J \kappa$ with
 $\kappa = e^{\mu_J + \sigma_J^2/2} - 1$ makes $\mathbb{E}[S_t] = S_0
 e^{\mu t}$ exact for **every** $(\lambda_J, \mu_J, \sigma_J)$, so the
@@ -356,8 +339,7 @@ If a row's $|z|$ is consistently large, the compensation wiring is
 broken. If the Merton SD ever drops below the GBM-cf SD by more than
 MC noise, the jump overlay is not firing.
 
-```{ojs}
-//| echo: false
+```ts
 Inputs.table(run.jumpCheck.rows, {
   columns: ["name","gbmClosedMean","mertonMcMean","mertonMcCi95","gbmClosedSd","mertonMcSd","zVsGbmClosed"],
   header: {
@@ -381,15 +363,14 @@ Inputs.table(run.jumpCheck.rows, {
 ```
 
 _Overlay used: $\lambda_J = 3$/yr, $\mu_J = -0.1$, $\sigma_J = 0.15$
-(set by the CLI's `JUMP_CHECK` constant). Matching means is the
+(set by the `JUMP_CHECK` constant in `src/lib/run.ts`). Matching means is the
 numerical signature of the compensation identity
 $\mathbb{E}[S_t] = S_0 e^{\mu t}$; widened SDs are the signature that
 jumps are actually firing._
 
 Spot-check on the same run:
 
-```{ojs}
-//| echo: false
+```ts
 html`<div class="metric-grid">
   <div class="card"><div class="label">E[S_T] gbm closed</div><div class="value">${run.jumpCheck.terminalSCheck.gbmClosed.toFixed(4)}</div></div>
   <div class="card"><div class="label">E[S_T] merton mc</div><div class="value">${run.jumpCheck.terminalSCheck.mertonMcMean.toFixed(4)}</div></div>
@@ -436,17 +417,15 @@ What to notice on each panel:
   i.e. $(1-\alpha) = 0.5$ on standard deviation. This is the visual
   demonstration that pre-buying tokens shrinks the loss tail.
 
-```{ojs}
-//| echo: false
-pnlData = [
+```ts
+const pnlData = [
   ...run.sampleTraces.fee.map(v => ({model: "fee", pnl: v})),
   ...run.sampleTraces.b2b.map(v => ({model: "principal_3b", pnl: v})),
   ...run.sampleTraces.partial.map(v => ({model: "principal_3c", pnl: v}))
-]
+];
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 900,
   height: 420,
@@ -497,19 +476,17 @@ to be estimated by Monte Carlo. This plot is that estimate:
 - **Dashed black rules** are $\mathbb{E}[I_T] \pm \mathrm{SD}[I_T]$ — roughly a one-sigma
   band. A well-behaved histogram puts ~68% of its mass between them.
 
-```{ojs}
-//| echo: false
-itHist = {
+```ts
+const itHist = (() => {
   const { edges, counts } = run.itSampleHistogram;
   const total = counts.reduce((a,b) => a+b, 0);
   return counts.map((c,i) => ({
     x0: edges[i], x1: edges[i+1], density: c / (total * (edges[i+1]-edges[i]))
   }));
-}
+})();
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 720,
   height: 320,
@@ -577,20 +554,18 @@ The plot shows a handful of sampled paths of $V_t$:
   recovers to a reasonable terminal NAV can touch a painful low
   partway through. The next plot quantifies that.
 
-```{ojs}
-//| echo: false
-pathRecords = run.sampledPaths.flatMap((path, idx) =>
+```ts
+const pathRecords = run.sampledPaths.flatMap((path, idx) =>
   path.map((s, k) => ({
     t: k / run.params.nSteps,
     S: s,
     V: run.params.lambda * run.params.T * run.params.P * (1 - k / run.params.nSteps) * s,
     id: idx
   }))
-)
+);
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 900,
   height: 380,
@@ -643,8 +618,7 @@ Even though the matched book has deterministic **terminal** P&L, this
 plot shows why it is not "risk-free" in any practical sense: a large
 interim drawdown is a real operational event.
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 720,
   height: 320,
@@ -674,27 +648,25 @@ distribution. This section does the opposite: it **fixes the book**
 how that risk summary responds.
 
 Loaded from `data/sweep.json` — a grid of Monte Carlo runs over
-$(\alpha, \mu, \sigma)$. Use the controls below to slice the grid. The plots below
-track $\mathrm{CVaR}_{95}$ for the **principal 3c** (partial pre-purchase) book.
+$(\alpha, \mu, \sigma)$ produced by `src/data/sweep.json.ts`. Use the
+controls below to slice the grid. The plots below track
+$\mathrm{CVaR}_{95}$ for the **principal 3c** (partial pre-purchase) book.
 Reminder: **$\mathrm{CVaR}_{95}$ is the expected loss in the worst 5% of outcomes,
 so larger numbers are worse.** A reader can think of the two plots
 below as "how bad does the worst-5% outcome get, as I dial each knob?"
 
 All P&L sweep quantities are in USD over horizon $T$.
 
-```{ojs}
-//| echo: false
-sweep = FileAttachment("data/sweep.json").json()
+```ts
+const sweep = await FileAttachment("data/sweep.json").json();
 ```
 
-```{ojs}
-//| echo: false
-viewof pickAlpha = Inputs.range([0,1], { step: 0.25, value: 0.5, label: "hedge ratio α" })
+```ts
+const pickAlpha = view(Inputs.range([0,1], { step: 0.25, value: 0.5, label: "hedge ratio α" }));
 ```
 
-```{ojs}
-//| echo: false
-viewof pickMu = Inputs.select(sweep.grid.mus, { value: 0.05, label: "drift μ (/yr)" })
+```ts
+const pickMu = view(Inputs.select(sweep.grid.mus, { value: 0.05, label: "drift μ (/yr)" }));
 ```
 
 ### Tail risk vs volatility $\sigma$ (fixed $\alpha, \mu$)
@@ -711,13 +683,11 @@ We therefore expect the curve below to be monotonically increasing
 (higher volatility → worse tail loss). That's a useful sanity check:
 if the line is non-monotone or flat, something is wrong upstream.
 
-```{ojs}
-//| echo: false
-filteredBySigma = sweep.cells.filter(c => c.alpha === pickAlpha && c.mu === pickMu)
+```ts
+const filteredBySigma = sweep.cells.filter(c => c.alpha === pickAlpha && c.mu === pickMu);
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 860,
   height: 360,
@@ -765,13 +735,11 @@ This plot is the visual answer to: *"Pre-buying tokens is the natural
 hedge for the back-to-back principal book."* The curve below is the
 dose-response curve for that hedge.
 
-```{ojs}
-//| echo: false
-byAlpha = sweep.cells.filter(c => c.mu === pickMu && c.sigma === sweep.grid.sigmas[1])
+```ts
+const byAlpha = sweep.cells.filter(c => c.mu === pickMu && c.sigma === sweep.grid.sigmas[1]);
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 860,
   height: 360,
@@ -835,20 +803,17 @@ On the plot:
   and the further the line moves away from 1. Short horizons barely
   depart from the dashed line at all.
 
-```{ojs}
-//| echo: false
-qstar = FileAttachment("data/qstar-surface.json").json()
+```ts
+const qstar = await FileAttachment("data/qstar-surface.json").json();
 ```
 
-```{ojs}
-//| echo: false
-qstarRecords = qstar.mus.flatMap((mu, i) =>
+```ts
+const qstarRecords = qstar.mus.flatMap((mu, i) =>
   qstar.Ts.map((T, j) => ({ mu, T, Q: qstar.values[i][j] }))
-)
+);
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Plot.plot({
   width: 760,
   height: 400,
@@ -909,5 +874,5 @@ report later.
   of revenue, not a loss against zero.
 
 For cross-phase business take-aways, scope caveats, and a drawable
-price-curve stress-test tool, see the [Conclusions](conclusions.qmd)
+price-curve stress-test tool, see the [Conclusions](./conclusions)
 page.

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { samplePath } from "../src/gbm.ts";
-import { expectedIt, varianceIt } from "../src/moments.ts";
-import { mulberry32 } from "../src/rng.ts";
-import { summarize } from "../src/risk.ts";
+import { samplePath } from "../src/lib/gbm.ts";
+import { expectedIt, varianceIt } from "../src/lib/moments.ts";
+import { mulberry32 } from "../src/lib/rng.ts";
+import { summarize } from "../src/lib/risk.ts";
 
 describe("samplePath", () => {
   it("degenerates to the deterministic curve when σ = 0", () => {

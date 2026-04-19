@@ -1,12 +1,6 @@
-// Fetches the kVCM spot history via Alchemy's Prices API into report/data/.
-
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = resolve(HERE, "..", "report", "data");
-const OUT_PATH = resolve(DATA_DIR, "kvcm-historical.json");
+// Pulls the kVCM spot history via Alchemy's Prices API. Called from a
+// Framework data loader at build time; returns null when ALCHEMY_API_KEY is
+// absent so the conclusions page's historical preset degrades to a no-op.
 
 const ADDRESS = "0x00fbac94fec8d4089d3fe979f39454f48c71a65d";
 const NETWORK = "base-mainnet";
@@ -27,12 +21,12 @@ interface AlchemyResponse {
   error?: { message?: string };
 }
 
-interface OutputPoint {
+export interface OutputPoint {
   timestamp: string;
   value: number;
 }
 
-interface Output {
+export interface HistoricalPriceArtifact {
   address: string;
   network: string;
   currency: string;
@@ -41,32 +35,11 @@ interface Output {
   data: OutputPoint[];
 }
 
-function writeOutput(out: Output): void {
-  mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(OUT_PATH, JSON.stringify(out, null, 2));
-  console.log(`wrote ${OUT_PATH} (${out.data.length} points)`);
-}
-
-async function main(): Promise<void> {
+export async function fetchHistoricalPrice(): Promise<HistoricalPriceArtifact | null> {
   const apiKey = process.env.ALCHEMY_API_KEY;
+  if (!apiKey) return null;
+
   const fetchedAt = new Date().toISOString();
-
-  if (!apiKey) {
-    console.warn(
-      "ALCHEMY_API_KEY not set; writing empty kvcm-historical.json. " +
-        "The phase-c 'Historical' button will be inert.",
-    );
-    writeOutput({
-      address: ADDRESS,
-      network: NETWORK,
-      currency: "usd",
-      interval: INTERVAL,
-      fetchedAt,
-      data: [],
-    });
-    return;
-  }
-
   const now = new Date();
   const start = new Date(now.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const body = {
@@ -101,17 +74,12 @@ async function main(): Promise<void> {
     value: Number(p.value),
   }));
 
-  writeOutput({
+  return {
     address: ADDRESS,
     network: NETWORK,
     currency: json.currency ?? "usd",
     interval: INTERVAL,
     fetchedAt,
     data,
-  });
+  };
 }
-
-main().catch((e) => {
-  console.error(e instanceof Error ? e.message : e);
-  process.exit(1);
-});

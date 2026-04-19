@@ -1,4 +1,12 @@
-# Klima Protocol — Fee-Based vs. Principal Model
+---
+title: Phase A — Research note
+toc: true
+---
+
+# Phase A — Research note
+
+_Mathematical framework, closed-form moments, risk-metric menu_
+
 
 A research note on revenue and risk quantification for a carbon-retirement intermediary operating against the Klima Protocol.
 

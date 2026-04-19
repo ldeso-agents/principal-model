@@ -24,34 +24,21 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Fetch historical kVCM price (Alchemy Prices API)
+      - name: Build Observable Framework site
         env:
           ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
-        run: npm run fetch:prices
-
-      - name: Run simulator (emits report/data/*.json consumed by the notebook)
-        run: |
-          npm run simulate -- --seed 42
-          npm run sweep -- --seed 42
-
-      - name: Setup Quarto
-        uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b # v2.2.0
-
-      - name: Render Quarto site
-        uses: quarto-dev/quarto-actions/render@8a96df13519ee81fd526f2dfca5962811136661b # v2.2.0
-        with:
-          path: report
+        run: npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: report/_site
+          path: dist
 
   deploy:
     needs: build

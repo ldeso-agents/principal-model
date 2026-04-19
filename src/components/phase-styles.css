@@ -3,6 +3,27 @@
 .phase-c-derived .card .label { font-size: 0.8rem; color: #555; }
 .phase-c-derived .card .value { font-family: ui-monospace, monospace; font-size: 1.1rem; }
 
+/* Phase B scorecard grid (moved out of inline <style> on phase-b.md). */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+.metric-grid .card { border: 1px solid #ddd; border-radius: 6px; padding: 0.75rem; background: #fafafa; }
+.metric-grid .card .label { font-size: 0.8rem; color: #555; }
+.metric-grid .card .value { font-family: ui-monospace, monospace; font-size: 1.2rem; }
+
+/* Lightweight blue-left-border callout used on the Phase pages. */
+.callout-note-lite { border-left: 3px solid #4c78a8; background: #f3f7fb; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.95rem; }
+
+/* Phase B column-legend table. */
+.legend-table { font-size: 0.9rem; margin: 0.5rem 0 1rem; }
+.legend-table td:first-child { font-family: ui-monospace, monospace; padding-right: 0.8rem; }
+
+/* Drawable custom-curve widget — conclusions.md. */
+.pc-curve-box { border: 1px solid #ddd; border-radius: 8px; background: #fafafa; padding: 0.75rem 1rem 1rem; margin: 0.75rem 0; }
+.pc-curve-toolbar { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.6rem; align-items: center; }
+.pc-curve-toolbar button { padding: 0.3rem 0.7rem; border: 1px solid #888; background: #fff; color: #111; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; }
+.pc-curve-toolbar button:hover { background: #eef; border-color: #555; }
+.pc-curve-toolbar .hint { font-size: 0.82rem; color: #666; margin-left: auto; }
+.pc-curve-canvas { display: block; max-width: 100%; height: auto; touch-action: none; cursor: crosshair; background: #fff; border: 1px solid #ccc; border-radius: 6px; }
+
 /* Section layout: body content stays at Quarto's native body-column
    width; the controls panel is pulled into the left gutter via a
    negative margin on the grid container. Avoiding a .column-* escape

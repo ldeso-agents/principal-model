@@ -1,29 +1,27 @@
 # principal-model — Phases B + C
 
-TypeScript simulator and interactive report for the research note *Klima
-Protocol — Fee-Based vs. Principal Model* ([`research-note.md`](research-note.md),
+TypeScript simulator and Observable Framework report for the research note
+*Klima Protocol — Fee-Based vs. Principal Model* ([`src/phase-a.md`](src/phase-a.md),
 Phase A).
 
 - **Phase B** reproduces the §1–§5 closed-form quantities computationally,
   estimates the §4 tail-risk metrics by Monte Carlo, and exposes the
-  results through a Quarto + Observable notebook.
+  results through an Observable Framework notebook.
 - **Phase C** is a browser-native interactive simulator
-  ([`report/phase-c.qmd`](report/phase-c.qmd)). Every slider re-runs a
-  fresh Monte Carlo on the parameters of your choosing (starting kVCM
-  price, starting carbon price per tonne, drift and variance, optional
-  Merton jump-diffusion overlay via three jump sliders, initial
-  inventory as tokens + cost basis, constant retirements per day), and a
-  drawable custom-curve scenario (with an Alchemy-fed historical preset)
-  evaluates the three books on a single user-sketched path. Subsequent
-  Phase C iterations will swap in the remaining richer dynamics (regime
-  switching, Poisson demand, full calibration, dynamic hedging) behind
-  the same UI.
+  ([`src/phase-c.md`](src/phase-c.md)). Every slider re-runs a fresh Monte
+  Carlo on the parameters of your choosing (starting kVCM price, starting
+  carbon price per tonne, drift and variance, optional Merton jump-diffusion
+  overlay via three jump sliders, initial inventory as tokens + cost basis,
+  constant retirements per day), and a drawable custom-curve scenario (with
+  an Alchemy-fed historical preset) evaluates the three books on a single
+  user-sketched path. Subsequent Phase C iterations will swap in the
+  remaining richer dynamics (regime switching, Poisson demand, full
+  calibration, dynamic hedging) behind the same UI.
 
 ## Requirements
 
-- Node.js ≥ 20
+- Node.js ≥ 20 (the Pages workflow pins 22)
 - npm ≥ 10
-- Quarto ≥ 1.4 (optional — only for the interactive report)
 
 ## Install
 
@@ -34,69 +32,66 @@ npm install
 ## Run
 
 ```sh
-# One-shot run with defaults (see src/params.ts)
-npm run simulate -- --seed 42
+# Live preview — auto-runs data loaders on demand.
+npm run dev
 
-# Parameter sweep for the Observable sliders
-npm run sweep -- --seed 42
+# One-shot static build into dist/.
+npm run build
 
-# Type-check + unit tests
+# Type-check + unit tests (43 vitest specs).
 npm run typecheck
 npm test
 ```
 
-Artifacts are written to `report/data/`:
+`npm run build` invokes the data loaders under `src/data/` which call
+directly into the library:
 
-- `run-<seed>.json` — single-run: params, closed-form metrics, MC metrics,
-  $I_T$ histogram, sampled paths, sub-sampled P&L traces.
-- `sweep.json` — grid over $(\alpha, \mu, \sigma)$ with per-cell MC metrics.
-- `qstar-surface.json` — $Q^*(\mu, T)$ closed-form surface.
-
-### CLI flags
-
-| flag | meaning |
-| --- | --- |
-| `--seed N` | PRNG seed |
-| `--paths N` | override `nPaths` |
-| `--steps N` | override `nSteps` |
-| `--alpha x` | override $\alpha$ |
-| `--mu x` / `--sigma x` | override $\mu$, $\sigma$ |
-| `--f x` / `--Q x` / `--T x` | override fee, quote, horizon |
-| `--lambdaJ x` / `--muJ x` / `--sigmaJ x` | Merton jump params (default 0 ⇒ pure GBM) |
-| `--sweep` | additionally write `sweep.json` |
-
-## Interactive report
-
-```sh
-# Phase B — pre-computed JSON, requires a simulate+sweep pass first.
-npm run simulate -- --seed 42
-npm run sweep    -- --seed 42
-quarto preview report/phase-b.qmd
-
-# Phase C — live in-browser Monte Carlo, no JSON pre-pass needed.
-quarto preview report/phase-c.qmd
-```
+- `src/data/run-42.json.ts` → `runSingle` in `src/lib/run.ts` — params,
+  closed-form metrics, MC metrics, $I_T$ histogram, sampled paths,
+  sub-sampled P&L traces, Merton jump-check block.
+- `src/data/sweep.json.ts` → `runSweep` in `src/lib/sweep.ts` — grid over
+  $(\alpha, \mu, \sigma)$ with per-cell MC metrics.
+- `src/data/qstar-surface.json.ts` → `qstarSurface` in `src/lib/qstar.ts` —
+  $Q^*(\mu, T)$ closed-form surface.
+- `src/data/kvcm-historical.json.ts` → `fetchHistoricalPrice` in
+  `src/lib/fetch-historical-price.ts` — daily kVCM spot from Alchemy.
+  Requires `ALCHEMY_API_KEY`; falls back to `{ data: [] }` when absent so
+  the Conclusions page's *Historical* preset degrades to a no-op without
+  failing the build.
 
 ## Layout
 
 ```
-src/
-  rng.ts                     seeded Mulberry32 + Box-Muller + Knuth Poisson
-  moments.ts                 Dufresne E[I_T], Var[I_T] with μ→0 limit
-  gbm.ts                     log-exact GBM stepper + trapezoidal I_T, optional Merton jumps
-  risk.ts                    quantile, VaR, CVaR, shortfall-vs-schedule
-  params.ts                  typed Params + defaults
-  models.ts                  closed-form + MC for fee, 3a, 3b, 3c; break-even Q*
-  report.ts                  §4/§5 table assembly + histograms
-  cli.ts                     entrypoint — prints tables, writes JSON
-  fetch-historical-price.ts  Alchemy Prices pull for the Phase C historical preset
-test/                        vitest unit + cross-check suite (43 tests)
-report/
-  index.qmd                  landing page linking Phases A / B / C
-  phase-a.qmd                includes research-note.md (Phase A)
-  phase-b.qmd                Phase B — Quarto + Observable notebook
-  phase-c.qmd                Phase C — live in-browser Monte Carlo + custom curve
-  data/                      emitted JSON artifacts
+src/                            Observable Framework source root
+  index.md                      landing page linking Phases A / B / C
+  phase-a.md                    Phase A research note (inlined)
+  phase-b.md                    Phase B — scorecard, sweeps, Q* surface
+  phase-c.md                    Phase C — live in-browser Monte Carlo
+  conclusions.md                Cross-phase take-aways + drawable curve
+  components/                   page-level TS + CSS shared across pages
+    phase-layout.ts             sticky-sidebar gutter measurement
+    phase-styles.css            .pc-section, .metric-grid, .pc-curve-*, …
+  data/                         Framework data loaders (.ts → emitted .json)
+  lib/                          TypeScript Monte-Carlo library (nested so the
+                                Framework source-tree import rules allow the
+                                .md pages to import it directly).
+    rng.ts                      seeded Mulberry32 + Box-Muller + Knuth Poisson
+    moments.ts                  Dufresne E[I_T], Var[I_T] with μ→0 limit
+    gbm.ts                      log-exact GBM stepper + trapezoidal I_T, optional Merton jumps
+    risk.ts                     quantile, VaR, CVaR, shortfall-vs-schedule
+    params.ts                   typed Params + defaults
+    models.ts                   closed-form + MC for fee, 3a, 3b, 3c; break-even Q*
+    report.ts                   §4/§5 table assembly + histograms
+    simulate.ts                 Phase-C raw-inventory MC (kPre, cBasis)
+    summarise.ts                browser-friendly summary (mean/SD/VaR/CVaR/…)
+    util.ts                     calendar-ish tick helpers (week/month/year)
+    run.ts                      runSingle() — Phase B artifact entrypoint
+    sweep.ts                    runSweep() — parameter sweep entrypoint
+    qstar.ts                    qstarSurface() — closed-form grid entrypoint
+    index.ts                    barrel re-export used by the Framework pages
+    fetch-historical-price.ts   Alchemy Prices API wrapper
+test/                           vitest unit + cross-check suite (43 tests)
+observablehq.config.ts          Framework config (KaTeX, pages, theme)
 ```
 
 ## Verification notes
@@ -109,7 +104,7 @@ report/
 - The §3a NAV drawdown reports $\max_t [N \cdot P \cdot (1-t/T) \cdot (S_0 - S_t)]_+$ —
   shortfall against the deterministic decay schedule — because the
   literal $\max_t (V_0 - V_t)$ from the note is pinned to $V_0$ under
-  the $V_T = 0$ burn convention. See `src/risk.ts` for details.
+  the $V_T = 0$ burn convention. See `src/lib/risk.ts` for details.
 
 ## References
 

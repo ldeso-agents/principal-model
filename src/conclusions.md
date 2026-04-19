@@ -1,32 +1,19 @@
 ---
-title: "Conclusions"
-subtitle: "Cross-phase take-aways and scenario stress-tests"
-format:
-  html:
-    toc: true
-    toc-depth: 2
-    theme: cosmo
-    embed-resources: false
-    css: lib/phase-styles.css
-    include-in-header:
-      - text: |
-          <script src="lib/phase-layout.js" defer></script>
+title: Conclusions
+toc: true
 ---
 
-```{=html}
-<style>
-  /* Drawable custom-curve widget — conclusions.qmd only. */
-  .pc-curve-box { border: 1px solid #ddd; border-radius: 8px; background: #fafafa; padding: 0.75rem 1rem 1rem; margin: 0.75rem 0; }
-  .pc-curve-toolbar { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.6rem; align-items: center; }
-  .pc-curve-toolbar button { padding: 0.3rem 0.7rem; border: 1px solid #888; background: #fff; color: #111; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; }
-  .pc-curve-toolbar button:hover { background: #eef; border-color: #555; }
-  .pc-curve-toolbar .hint { font-size: 0.82rem; color: #666; margin-left: auto; }
-  .pc-curve-canvas { display: block; max-width: 100%; height: auto; touch-action: none; cursor: crosshair; background: #fff; border: 1px solid #ccc; border-radius: 6px; }
-</style>
+```ts
+import "./components/phase-layout.ts";
+import { makeRng, xTicksAnchoredRight, formatTickDate, simulate, summarise } from "./lib/index.ts";
 ```
 
-[Phase B](phase-b.qmd) cross-checked the closed-form math against Monte
-Carlo. [Phase C](phase-c.qmd) lets you drive the live simulator from
+# Conclusions
+
+_Cross-phase take-aways and scenario stress-tests_
+
+[Phase B](./phase-b) cross-checked the closed-form math against Monte
+Carlo. [Phase C](./phase-c) lets you drive the live simulator from
 sliders. This page collects the cross-cutting take-aways of the
 research programme and adds a deterministic **stress-test tool** — draw
 any price trajectory you like, and the three books' P&L is recomputed
@@ -112,9 +99,9 @@ use it to:
   long-run average — which is what a stress test is trying to
   quantify.
 
-::: {.callout-note appearance="simple"}
-## How the curve is used
+<div class="callout-note-lite">
 
+**How the curve is used.**
 The drawn values $\tilde S_0, \tilde S_1, \ldots, \tilde S_n$ define the
 base trajectory. If the noise variance $\sigma^2_{\mathrm{noise}}$ is
 positive, each step is multiplied by an accumulated log-normal shock
@@ -131,7 +118,8 @@ below is exactly the P&L on the curve you see. Turning noise on
 simulates "what if the trajectory I envisioned had typical day-to-day
 jitter around it?" — useful when the question is robustness of a
 narrative rather than the narrative itself.
-:::
+
+</div>
 
 ### The toolbar presets
 
@@ -157,91 +145,77 @@ them as starting points and then refine by hand.
 - **Random walk.** A rough approximation of GBM drawn by hand — not
   the same as the simulator's MC, but visually similar. Useful as a
   "what might one realisation actually look like?" reference.
-- **Historical.** If `npm run fetch:prices` has populated
-  `data/kvcm-historical.json`, this button loads the real kVCM series
-  (Alchemy Prices API) and auto-resizes the horizon to match the
-  available history. The button is disabled when the file is missing
-  or empty, and the rest of the canvas continues to work.
+- **Historical.** When the build-time Alchemy fetch populated
+  `data/kvcm-historical.json` (i.e. the `ALCHEMY_API_KEY` secret was
+  available during `npm run build`), this button loads the real kVCM
+  series and auto-resizes the horizon to match the available history.
+  The button is disabled when the file is missing or empty, and the
+  rest of the canvas continues to work.
 
-```{ojs}
-//| echo: false
-historicalPrices = {
-  // Fetched at build time by `npm run fetch:prices` (Alchemy Prices API).
-  // Missing or empty file ⇒ the "Historical" preset below is inert.
-  try {
-    const r = await fetch("data/kvcm-historical.json");
-    if (!r.ok) return { data: [] };
-    return await r.json();
-  } catch (e) {
-    return { data: [] };
-  }
-}
+```ts
+const historicalPrices = await FileAttachment("data/kvcm-historical.json").json();
 ```
 
-```{ojs}
-//| echo: false
+```ts
 // "Today" anchor for the custom-curve x-axis. Prefers the fetchedAt
-// timestamp baked into kvcm-historical.json by `npm run fetch:prices`
-// so the rightmost tick reflects build time rather than page-open
-// time; falls back to the current date if the build-time fetch is
-// missing. Captured once per page load so ticks don't shift while the
-// document is open.
-buildDate = {
-  const iso = historicalPrices && historicalPrices.fetchedAt;
+// timestamp baked into kvcm-historical.json by the data loader so the
+// rightmost tick reflects build time rather than page-open time.
+const buildDate = (() => {
+  const iso = historicalPrices?.fetchedAt;
   if (iso) {
     const parsed = new Date(iso);
     if (!isNaN(parsed.getTime())) return parsed;
   }
   return new Date();
-}
+})();
 ```
 
-:::: {.pc-section}
+<div class="pc-section">
 
-::: {.pc-controls}
+<div class="pc-controls">
+
 The drawn-curve scenario depends on the inventory, contract, and
 horizon sliders below. Drift $\mu$, variance $\sigma^2$, and jump
 parameters ($\lambda_J$, $\mu_J$, $\sigma_J$) are fixed at the Phase C
 defaults ($\mu = 0.05$, $\sigma^2 = 0.25$, no jumps) for the comparison
-MC — open [Phase C](phase-c.qmd) to vary those.
+MC — open [Phase C](./phase-c) to vary those.
 
 ### Price process
 
-```{ojs}
-//| echo: false
-viewof pi0 = Inputs.range([0, 500], { step: 1, value: 125, label: "π₀ (USD / tonne)" })
+```ts
+const pi0Input = Inputs.range([0, 500], { step: 1, value: 125, label: "π₀ (USD / tonne)" });
+const pi0 = view(pi0Input);
 ```
 
-```{ojs}
-//| echo: false
-viewof P = Inputs.range([100, 25000], { step: 10, value: 1790, label: "P (kVCM / tonne)" })
+```ts
+const PInput = Inputs.range([100, 25000], { step: 10, value: 1790, label: "P (kVCM / tonne)" });
+const P = view(PInput);
 ```
 
 ### Demand & inventory
 
-```{ojs}
-//| echo: false
-viewof lambdaDay = Inputs.range([0, 50], { step: 0.1, value: 1, label: "retirements (tonnes / day)" })
+```ts
+const lambdaDayInput = Inputs.range([0, 50], { step: 0.1, value: 1, label: "retirements (tonnes / day)" });
+const lambdaDay = view(lambdaDayInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof kPre = Inputs.range([0, 2000000], { step: 1000, value: 300000, label: "initial inventory (kVCM)" })
+```ts
+const kPreInput = Inputs.range([0, 2000000], { step: 1000, value: 300000, label: "initial inventory (kVCM)" });
+const kPre = view(kPreInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof cBasis = Inputs.range([0, 1000000], { step: 100, value: 21000, label: "inventory basis (USD, total)" })
+```ts
+const cBasisInput = Inputs.range([0, 1000000], { step: 100, value: 21000, label: "inventory basis (USD, total)" });
+const cBasis = view(cBasisInput);
 ```
 
 ### Contract
 
-```{ojs}
-//| echo: false
+```ts
 // Step = 1 (not 5): a coarser step causes a range-input snap when the
 // value is set to `history.length - 1`, inflating nPoints past the
 // available history and leaving a non-historical fill at the left edge.
-viewof Tdays = {
+const TdaysInput = (() => {
   const hist = (historicalPrices && Array.isArray(historicalPrices.data))
     ? historicalPrices.data
     : [];
@@ -250,103 +224,56 @@ viewof Tdays = {
     ? Math.max(30, Math.min(1095, hist.length - 1))
     : fallback;
   return Inputs.range([30, 1095], { step: 1, value: dflt, label: "horizon T (days)" });
-}
+})();
+const Tdays = view(TdaysInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof Q = Inputs.range([0, 1000], { step: 0.5, value: 180, label: "fixed quote Q (USD / tonne)" })
+```ts
+const QInput = Inputs.range([0, 1000], { step: 0.5, value: 180, label: "fixed quote Q (USD / tonne)" });
+const Q = view(QInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof fee = Inputs.range([0, 1], { step: 0.01, value: 0.4, label: "fee rate f" })
+```ts
+const feeInput = Inputs.range([0, 1], { step: 0.01, value: 0.4, label: "fee rate f" });
+const fee = view(feeInput);
 ```
 
 ### Curve settings
 
-```{ojs}
-//| echo: false
-viewof curveYMax = Inputs.range([0.01, 3], { step: 0.005, value: 0.2, label: "canvas y-max (USD / kVCM)" })
+```ts
+const curveYMaxInput = Inputs.range([0.01, 3], { step: 0.005, value: 0.2, label: "canvas y-max (USD / kVCM)" });
+const curveYMax = view(curveYMaxInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof curveVar = Inputs.range([0, 2.5], { step: 0.005, value: 0, label: "noise variance σ² (annualised)" })
+```ts
+const curveVarInput = Inputs.range([0, 2.5], { step: 0.005, value: 0, label: "noise variance σ² (annualised)" });
+const curveVar = view(curveVarInput);
 ```
 
-```{ojs}
-//| echo: false
-viewof seed = Inputs.range([1, 9999], { step: 1, value: 42, label: "PRNG seed" })
+```ts
+const seedInput = Inputs.range([1, 9999], { step: 1, value: 42, label: "PRNG seed" });
+const seed = view(seedInput);
 ```
 
-```{ojs}
-//| echo: false
-conclusionsResetButton = {
-  const hist = (historicalPrices && Array.isArray(historicalPrices.data))
-    ? historicalPrices.data
-    : [];
-  const defaultTdays = hist.length >= 2
-    ? Math.max(30, Math.min(1095, hist.length - 1))
-    : 365;
-  const defaults = {
-    pi0: 125, P: 1790,
-    lambdaDay: 1, kPre: 300000, cBasis: 21000,
-    Tdays: defaultTdays, Q: 180, fee: 0.4,
-    curveYMax: 0.2, curveVar: 0, seed: 42,
-  };
-  const views = {
-    pi0: viewof pi0, P: viewof P,
-    lambdaDay: viewof lambdaDay, kPre: viewof kPre, cBasis: viewof cBasis,
-    Tdays: viewof Tdays, Q: viewof Q, fee: viewof fee,
-    curveYMax: viewof curveYMax, curveVar: viewof curveVar, seed: viewof seed,
-  };
-  const wrap = document.createElement("div");
-  wrap.className = "pc-reset";
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.textContent = "Reset to defaults";
-  btn.addEventListener("click", () => {
-    for (const k of Object.keys(defaults)) {
-      const el = views[k];
-      el.value = defaults[k];
-      el.dispatchEvent(new CustomEvent("input", { bubbles: true }));
-    }
-  });
-  wrap.appendChild(btn);
-  return wrap;
-}
-```
+</div>
 
-:::
+<div class="pc-main">
 
-::: {.pc-main}
-
-```{ojs}
-//| echo: false
-import {
-  makeRng, xTicksAnchoredRight, formatTickDate,
-  simulate, summarise,
-} from "./lib/ojs-helpers.js"
-```
-
-```{ojs}
-//| echo: false
-derived = {
+```ts
+const derived = (() => {
   const S0 = P > 0 ? pi0 / P : 0;
   const T = Tdays / 365;
   const lambda = lambdaDay * 365;
   const N = lambda * T;
   return { S0, T, lambda, N };
-}
+})();
 ```
 
-```{ojs}
-//| echo: false
+```ts
 // Self-contained comparison MC for the drawn-curve table. Drift and
 // variance are fixed at the Phase C defaults; open Phase C to vary
 // them. nPaths / nSteps are hardcoded at Phase C's defaults too.
-run = {
+const run = (() => {
   const inputs = {
     S0: derived.S0, mu: 0.05, sigma: Math.sqrt(0.25), P,
     lambda: derived.lambda, T: derived.T,
@@ -361,12 +288,11 @@ run = {
     principal: summarise(raw.principalSamples),
     b2b: summarise(raw.b2bSamples),
   };
-}
+})();
 ```
 
-```{ojs}
-//| echo: false
-viewof customCurve = {
+```ts
+const customCurve = view((() => {
   // One sample per day. The rightmost point is the build-time anchor
   // (values[nPoints-1] = today) and the leftmost is (Tdays) days ago,
   // so moving the horizon slider extends or trims the left edge
@@ -690,16 +616,15 @@ viewof customCurve = {
     // in toward the left.
     const dayCount = history.length;
     const targetTdays = Math.max(30, Math.min(MAX_TDAYS, dayCount - 1));
-    const tdaysView = viewof Tdays;
 
-    if (Number(tdaysView.value) !== targetTdays) {
+    if (Number(Tdays) !== targetTdays) {
       // Stash the series into master so the cell's re-run — triggered
       // by the Tdays change below — picks it up without a second fill.
       for (let daysAgo = 0; daysAgo <= targetTdays; daysAgo++) {
         master[daysAgo] = history[dayCount - 1 - daysAgo].value;
       }
-      tdaysView.value = targetTdays;
-      tdaysView.dispatchEvent(new CustomEvent("input", { bubbles: true }));
+      (TdaysInput as any).value = targetTdays;
+      TdaysInput.dispatchEvent(new CustomEvent("input", { bubbles: true }));
       return;
     }
 
@@ -724,12 +649,11 @@ viewof customCurve = {
     nPoints,
   };
   return container;
-}
+})());
 ```
 
-```{ojs}
-//| echo: false
-customScenario = {
+```ts
+const customScenario = (() => {
   const { values: base, realised, nPoints } = customCurve;
   const T = derived.T;
   const lam = derived.lambda;
@@ -769,7 +693,7 @@ customScenario = {
   const meanS = IT / T;
 
   return { base, realised, nPoints, IT, tailInt, ST, tauFrac, tokensLeftover, feeRev, b2b, cust, maxS, minS, meanS };
-}
+})();
 ```
 
 _Orange: the curve you drew. Blue (when $\sigma^2_{\mathrm{noise}} > 0$):
@@ -791,8 +715,7 @@ The next two blocks present the **result** of whatever you drew:
    this specific story a good / bad outcome relative to the long-run
    average?"
 
-```{ojs}
-//| echo: false
+```ts
 html`<div class="phase-c-derived">
   <div class="card"><div class="label">min / max drawn S</div><div class="value">${"$" + customScenario.minS.toFixed(4)} / ${"$" + customScenario.maxS.toFixed(4)}</div></div>
   <div class="card"><div class="label">mean drawn S (I_T / T)</div><div class="value">${"$" + customScenario.meanS.toFixed(4)}</div></div>
@@ -801,17 +724,15 @@ html`<div class="phase-c-derived">
 </div>`
 ```
 
-```{ojs}
-//| echo: false
-customRows = [
+```ts
+const customRows = [
   { book: "fee",                      pnl: customScenario.feeRev, mcMean: run.fee.mean,       diff: customScenario.feeRev - run.fee.mean },
   { book: "principal (custom)",       pnl: customScenario.cust,   mcMean: run.principal.mean, diff: customScenario.cust   - run.principal.mean },
   { book: "principal (back-to-back)", pnl: customScenario.b2b,    mcMean: run.b2b.mean,       diff: customScenario.b2b    - run.b2b.mean },
-]
+];
 ```
 
-```{ojs}
-//| echo: false
+```ts
 Inputs.table(customRows, {
   columns: ["book", "pnl", "mcMean", "diff"],
   header: {
@@ -855,16 +776,16 @@ specific scenario compares to the average across random GBM futures._
   coverage is below 100%. At 100% coverage the custom book is
   deterministic and its P&L does not depend on the path at all.
 
-:::
+</div>
 
-::::
+</div>
 
 ## Scope & limitations
 
 What the current research programme does *not* cover (yet):
 
 - **Price dynamics are GBM with an optional Merton jump-diffusion
-  overlay.** The jump sliders are now live on [Phase C](phase-c.qmd);
+  overlay.** The jump sliders are now live on [Phase C](./phase-c);
   regime switching, Poisson retirement flow, historical calibration of
   $(\mu, \sigma)$ against a kVCM proxy, and dynamic hedging strategies
   are the remaining Phase C roadmap items. Each will swap in behind
@@ -872,7 +793,7 @@ What the current research programme does *not* cover (yet):
 - **Gas, slippage, and discounting are not modelled.** Each introduces
   a small correction to the book formulas (typically a few percent),
   not a qualitative change in shape. They are not yet exposed in the
-  simulator's parameter record (`src/params.ts`).
+  simulator's parameter record (`src/lib/params.ts`).
 - **Nothing here is financial advice.** Use the framework; plug in
   your own $(\mu, \sigma)$ calibrated from data before any business
   decision; treat the drawn-curve results as illustrative scenarios,
@@ -883,19 +804,16 @@ What the current research programme does *not* cover (yet):
 - **Performance.** The Phase C simulator runs sub-second at 5,000
   paths × 100 steps on a typical laptop. The comparison MC on this
   page uses those same defaults.
-- **Reproducibility.** The PRNG is a seeded Mulberry32, shared by
-  construction across Phase B (`src/rng.ts`), Phase C, and this page's
-  duplicated inline port. A given `(seed, inputs)` pair is
-  deterministic across reloads — both for the Monte Carlo and for the
-  noise overlay on the drawn curve.
-- **What is still Phase B under the hood.** Deterministic retirement
-  flow. (GBM dynamics now have an optional jump-diffusion overlay on
-  [Phase C](phase-c.qmd).) Future Phase C iterations will replace the
-  remaining simplifications — regime switching and Poisson demand —
-  while keeping the same UI and book definitions.
-- **Why the simulator code is duplicated here.** The drawn-curve
-  comparison column needs live Monte Carlo means, and future scenarios
-  (jump-diffusion, regime switching) will not have closed-form anchors
-  — so a self-contained MC on this page is forward-compatible. The
-  duplication is intentional for now; a factored OJS module would be a
-  natural refactor once a third page needs the same helpers.
+- **Reproducibility.** The PRNG is a seeded Mulberry32 shared across
+  the whole programme — the Node-side Phase B data loaders in
+  `src/data/`, the browser-side Phase C live MC, and this page's
+  comparison MC all import `mulberry32` from the same `src/lib/rng.ts`.
+  A given `(seed, inputs)` pair is deterministic across reloads —
+  both for the Monte Carlo and for the noise overlay on the drawn
+  curve.
+- **One simulator, two call sites.** The same `simulate` from
+  `src/lib/simulate.ts` backs both the Node-side data loaders (not
+  used on this page — here we only need the drawn-curve comparison MC)
+  and the in-browser comparison MC below. The earlier Quarto-era
+  duplication of the simulator into a parallel JavaScript helper
+  (`ojs-helpers.js`) has been removed.

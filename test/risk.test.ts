@@ -6,7 +6,7 @@ import {
   quantile,
   summarize,
   valueAtRisk,
-} from "../src/risk.ts";
+} from "../src/lib/risk.ts";
 
 describe("quantile", () => {
   it("matches analytic quantiles for 0, 0.5, 1", () => {
