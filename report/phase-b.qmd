@@ -1,13 +1,15 @@
 ---
-title: "Phase B — Closed-form vs. Monte Carlo validation"
-subtitle: "Cross-check the Phase A math, add the tail metrics it cannot give"
+title: "Validation"
+subtitle: "Closed-form vs. Monte Carlo cross-check, plus the tail metrics the closed form cannot give"
 format:
   html:
     page-layout: full
     toc: true
     toc-depth: 2
+    toc-location: left
     theme: cosmo
     embed-resources: false
+    css: lib/phase-styles.css
 ---
 
 ```{=html}
@@ -22,81 +24,39 @@ format:
 </style>
 ```
 
-This page has two jobs: confirm the [Phase A](phase-a.qmd) closed-form
-moments against Monte Carlo, and add the tail metrics (VaR, CVaR, loss
-probability) that closed form cannot give. The `z` column in the §4
-scorecard is the numerical sanity check; everything else — histograms,
-NAV paths, break-even surfaces — exists to make the comparison and its
-consequences easy to read.
-
-The baseline price model is Geometric Brownian Motion (pure GBM plus a
-separate jump-diffusion verification in §6). All Monte Carlo
-computation happens in TypeScript under `src/`; this page reads the
-emitted JSON. To regenerate:
-
-```sh
-npm run simulate -- --seed 42
-npm run sweep -- --seed 42
-```
-
-## Reading notes
-
-Three conventions to keep in mind anywhere you see numbers on this page.
-
-- **The $z$ column is the primary sanity check.** $z = (\mathrm{MC} -
-  \mathrm{cf}) / \mathrm{stderr}$. $|z| \leq 2$ is healthy sampling
-  variation; $|z| > 3$ points at a simulator bug or too few paths.
-- **Variance ratio is algebraic, not statistical.** Fee and
-  back-to-back books share the kernel $I_T$, so
-  $\mathrm{Var}[\Pi_{\mathrm{b2b}}]/\mathrm{Var}[R_{\mathrm{fee}}] =
-  (P/f)^2$ exactly. Any disagreement with that ratio is a bug, not
-  sampling noise.
-- **P&L is a horizon total.** USD over $[0, T]$, not annualised and
-  not per-tonne. Divide by $N = \lambda T$ for a per-tonne figure.
-
-The fee row's VaR/CVaR are "low end of revenue, not loss" — see the
-glossary entry below.
-
 {{< include _glossary.qmd >}}
 
-### Notation
+This page cross-checks the closed-form moments from the
+[Model](phase-a.qmd) against Monte Carlo and adds the tail metrics
+(VaR, CVaR, loss probability) that the closed form cannot give. The
+`z` column in the §4 scorecard is the numerical sanity check;
+histograms, NAV paths, and break-even surfaces surround it to make the
+comparison and its consequences easy to read. Price model is GBM, with
+a compensated Merton jump overlay in §6. All computation happens in
+TypeScript under `src/`; this page reads the emitted JSON. Regenerate
+with `npm run simulate -- --seed 42 && npm run sweep -- --seed 42`.
 
-Same conventions as [Phase A](phase-a.qmd) §1–§5.
+Three reading conventions:
 
-| Symbol | Meaning | Units |
-| --- | --- | --- |
-| $S_t$ | kVCM spot price at time $t$ | USD / kVCM |
-| $P$ | protocol constant (kVCM burned per tonne) | kVCM / tonne |
-| $\pi_t := P \cdot S_t$ | USD protocol price per tonne | USD / tonne |
-| $\lambda$ | deterministic retirement flow | tonnes / year |
-| $T$ | horizon | years |
-| $N := \lambda \cdot T$ | total tonnes retired over $[0,T]$ | tonnes |
-| $f$ | fee rate | dimensionless |
-| $Q$ | fixed USD quote per tonne (principal model) | USD / tonne |
-| $\alpha \in [0,1]$ | pre-purchase (hedge) fraction — $0$ back-to-back, $1$ fully matched | dimensionless |
-| $\beta \in [0,1]$ | quota-share cession of the $(1-\alpha)$ stochastic leg (§3d) | dimensionless |
-| $\theta \geq 0$ | counterparty risk-load multiplier (§3d) | dimensionless |
-| $\pi$ | up-front syndication premium | USD |
-| $I_T := \int_0^T S_t\,dt$ | area under the price curve — the shared random kernel | (USD/kVCM)·year |
-| $R_{\mathrm{fee}} = f \cdot P \cdot \lambda \cdot I_T$ | fee revenue (always $\geq 0$) | USD |
-| $\Pi_{\mathrm{b2b}} = Q \cdot N - P \cdot \lambda \cdot I_T$ | back-to-back P&L ($\alpha=0$) | USD |
-| $\Pi_{\mathrm{matched}} = N \cdot (Q - P \cdot S_0)$ | matched P&L ($\alpha=1$, deterministic) | USD |
-| $\Pi_\alpha = (1-\alpha) \cdot \Pi_{\mathrm{b2b}} + \alpha \cdot \Pi_{\mathrm{matched}}$ | partial-hedge P&L | USD |
-| $\Pi_{\mathrm{ret}} = \alpha \cdot \Pi_{\mathrm{matched}} + (1-\alpha)(1-\beta) \cdot \Pi_{\mathrm{b2b}} + \pi$ | retained P&L after syndication (§3d) | USD |
-| $h \in [1, \infty]$, $H = h \cdot S_0$ | §3e barrier ratio and level; $h=\infty$ disables the switch | dimensionless / USD / kVCM |
-| $\tau := \inf\{t : S_t \ge H\} \wedge T$ | §3e first-passage time of $S_t$ to the barrier | years |
-| $I_\tau, J_\tau := \int_0^\tau S_t\,dt,\ \int_\tau^T S_t\,dt$ | pre- / post-switch price integrals (§3e); $I_\tau + J_\tau = I_T$ | (USD/kVCM)·year |
-| $\Pi_{\mathrm{sw}}^{(1-\alpha)} = Q\lambda\tau - P\lambda I_\tau + f_{\mathrm{post}}P\lambda J_\tau$ | switched stochastic leg (§3e) | USD |
-| $Q^* = (1+f) \cdot P \cdot S_0 \cdot (e^{\mu T}-1)/(\mu T)$ | break-even quote equating $\mathbb{E}[\Pi_{\mathrm{b2b}}] = \mathbb{E}[R_{\mathrm{fee}}]$ | USD / tonne |
+- **The $z$ column is the primary sanity check.** $z = (\mathrm{MC} -
+  \mathrm{cf}) / \mathrm{stderr}$; $|z| \le 2$ is healthy sampling
+  noise, $|z| > 3$ points at a simulator bug.
+- **Variance ratio is algebraic, not statistical.** Fee and
+  back-to-back books share $I_T$, so
+  $\mathrm{Var}[\Pi_{\mathrm{b2b}}]/\mathrm{Var}[R_{\mathrm{fee}}] =
+  (P/f)^2$ *exactly*. Any disagreement is a bug.
+- **P&L is the horizon total**, USD over $[0, T]$. Divide by $N =
+  \lambda T$ for a per-tonne figure. The fee book's VaR / CVaR read
+  as *low end of revenue*, not loss — revenue is $\ge 0$ by construction.
 
-{{< include _alpha-bridge.qmd >}}
+Notation follows [the model](phase-a.qmd#setup-and-notation) §1 and
+the on-page glossary.
 
 ## Single-run outputs
 
 One parameter setting, full P&L distributions. Loaded from
-`data/run-42.json` (produced by `npm run simulate -- --seed 42`). The
-parameter sweep further down is the complementary view: fix the book,
-vary the business parameters.
+`data/run-42.json`. The parameter sweep further down is the
+complementary view: fix the book, vary the business parameters.
 
 
 ```{ojs}
@@ -106,11 +66,11 @@ run = FileAttachment("data/run-42.json").json()
 
 ### Run parameters
 
-The scorecard echoes the sliders used for this run. $(\mu, \sigma, T)$
-set the price process; $\lambda$ the throughput; $(f, Q, \alpha)$ the
-business levers. $Q^*$ is the break-even quote computed from the
-others — setting $Q = Q^*$ equalises expected P&L between the fee and
-back-to-back books (§5 shows how their *distributions* still differ).
+$(\mu, \sigma, T)$ set the price process, $\lambda$ the throughput,
+$(f, Q, \alpha)$ the business levers. $Q^*$ is the break-even quote
+derived from the others — setting $Q = Q^*$ equalises the means of
+the fee and back-to-back books (their distributions still differ;
+see §5).
 
 ```{ojs}
 //| echo: false
@@ -130,14 +90,12 @@ html`<div class="metric-grid">
 
 ### §4 — P&L moments: closed-form vs Monte Carlo
 
-The central scorecard. One row per book (`fee`, matched `3a`,
-back-to-back `3b`, partial `3c`, retained `3d`, plus `3e` when a
-switching barrier is set on this run); one column per statistic. The
-left block compares closed-form and MC values — if the simulator is
-correct, they agree within $|z| \leq 2$ sampling noise. The `3e` row
-reports `NaN` in the closed-form columns because the switching book's
-moments have no closed form (see §3e below). The right block reports
-the tail metrics that have no closed form.
+The central scorecard. One row per book — `fee`, Matched (`3a`),
+Back-to-back (`3b`), Partial (`3c`), Syndicated retained (`3d`), and
+Switching (`3e`) when a barrier is set. The left block compares
+closed-form and MC values; the right block reports the tail metrics
+that have no closed form. The `3e` row reports `NaN` in the
+closed-form columns — the switching book's moments are MC-only.
 
 <div class="legend-table">
 
@@ -153,16 +111,6 @@ the tail metrics that have no closed form.
 | Sharpe | $\mathbb{E}[\Pi] / \mathrm{SD}[\Pi]$ — $f$-invariant for the fee book |
 
 </div>
-
-Row-by-row expectations: `fee` sits entirely in the non-negative
-half-plane; `principal_3a` has zero terminal randomness (SD, CI95, $z$
-all zero to machine precision); `principal_3b` owns the real loss tail
-(read its $\mathrm{CVaR}_{99}$); `principal_3c` should have SD and CVaR
-smaller than `3b`'s by exactly $(1-\alpha)$ — the variance collapse
-from Phase A §3c; `principal_3d` adds a further $(1-\beta)^2$ variance
-collapse via quota-share syndication, invariant in mean at $\theta = 0$.
-`principal_3e` (if present) bounds the loss tail by the fee book on
-$[\tau, T]$ — see §3e below.
 
 ```{ojs}
 //| echo: false
@@ -202,17 +150,17 @@ Inputs.table(run.rows, {
 
 ### §6 — Compensated Merton: closed-form means survive jumps
 
-Under the compensated Merton overlay ([Phase A](phase-a.qmd) §6), the
-drift term absorbs $-\lambda_J \kappa$ with $\kappa = e^{\mu_J +
+Under the compensated Merton overlay ([§6 of the model](phase-a.qmd#compensated-merton-jump-diffusion)),
+the drift absorbs $-\lambda_J \kappa$ with $\kappa = e^{\mu_J +
 \sigma_J^2/2} - 1$, so $\mathbb{E}[S_t] = S_0 e^{\mu t}$ regardless of
-$(\lambda_J, \mu_J, \sigma_J)$. Every GBM closed-form mean carries
-over; variances and tail metrics do not. The table below re-runs
-the simulator under a canonical overlay ($\lambda_J = 3$/yr, $\mu_J =
--0.1$, $\sigma_J = 0.15$) and compares its MC means to the **GBM**
-closed form. Expected signature: $|z| \lesssim 2$ on every row (means
-agree) with **SD (merton)** strictly above **SD (gbm-cf)** on every
-row (jumps firing). Persistent large $|z|$ points at broken
-compensation; missing SD widening points at an inert overlay.
+the jump parameters. Every GBM closed-form mean carries over;
+variances do not. The table below runs a canonical overlay
+($\lambda_J = 3$/yr, $\mu_J = -0.1$, $\sigma_J = 0.15$) and compares
+its MC means to the **GBM** closed form. Expected signature: $|z|
+\lesssim 2$ on every row (means agree) with **SD (merton)** strictly
+above **SD (gbm-cf)** (jumps firing). Persistent large $|z|$ points
+at broken compensation; missing SD widening points at an inert
+overlay.
 
 ```{ojs}
 //| echo: false
@@ -257,21 +205,19 @@ html`<div class="metric-grid">
 
 ### P&L distributions
 
-One panel per stochastic book. The x-axis is terminal P&L in USD; the
-solid black rule is closed-form $\mathbb{E}[\Pi]$ (a converged MC
-lands on it); the dashed grey rule is the break-even line at $\Pi =
-0$. Mass to the left of the grey rule is the loss probability
-$\mathbb{P}[\Pi < 0]$ reported in the table.
+One panel per stochastic book, terminal P&L on the x-axis. Solid
+black rule: closed-form $\mathbb{E}[\Pi]$. Dashed grey rule: $\Pi = 0$.
+Mass to the left of the dashed rule is the loss probability
+$\mathbb{P}[\Pi < 0]$ in the table above.
 
-- **Fee.** Non-negative by construction, right-skewed (inherits
-  $I_T$'s right skew).
-- **Principal 3b.** Mirror of the fee panel — same kernel $I_T$ with
-  opposite sign. Upside capped at $Q \cdot N$ (token collapses to
-  zero); downside unbounded (token rallies). The left-skewed loss
-  tail is the central risk concern of the programme.
-- **Principal 3c** (partial, $\alpha = 0.5$). Same shape as 3b but
-  narrower by $(1-\alpha) = 0.5$ on the SD scale — the visible
-  signature of pre-buying inventory.
+- **Fee.** Non-negative, right-skewed (inherits $I_T$'s right skew).
+- **Back-to-back (§3b).** Mirror of the fee panel — same kernel $I_T$
+  with opposite sign. Upside capped at $Q \cdot N$ (token collapses to
+  zero); downside unbounded (token rallies). This left-skewed loss
+  tail is the central risk concern.
+- **Partial (§3c)** at $\alpha = 0.5$. Same shape as §3b but narrower
+  by $(1-\alpha) = 0.5$ on the SD scale — the visible signature of
+  pre-buying inventory.
 
 ```{ojs}
 //| echo: false
@@ -310,15 +256,13 @@ break-even $\Pi = 0$._
 
 ### $I_T$ histogram vs. Dufresne closed-form moments
 
-$I_T$ is the single random variable that drives every stochastic book
-on this page: fee is linear in $I_T$, back-to-back is affine in $I_T$,
-partial is an affine mix. So it's worth looking at directly. Dufresne
-(2001) gives closed-form mean and variance; $I_T$ is **not** log-normal
-despite $S_t$ being so, so its tail quantiles come from Monte Carlo.
-
-The solid black rule is $\mathbb{E}[I_T] = S_0 \cdot (e^{\mu T} -
-1)/\mu$; the dashed rules are $\mathbb{E}[I_T] \pm \mathrm{SD}[I_T]$. A
-converged MC puts ~68% of the mass between the dashed rules.
+$I_T$ drives every stochastic book on this page: fee is linear in it,
+back-to-back is affine, partial is an affine mix. Dufresne (2001)
+gives the closed-form mean and variance; $I_T$ is not log-normal (only
+$S_t$ is), so tail quantiles come from Monte Carlo. Solid black rule:
+$\mathbb{E}[I_T] = S_0 \cdot (e^{\mu T} - 1)/\mu$. Dashed rules:
+$\mathbb{E}[I_T] \pm \mathrm{SD}[I_T]$. A converged MC puts ~68% of
+the mass between them.
 
 ```{ojs}
 //| echo: false
@@ -355,19 +299,17 @@ _Solid black: $\mathbb{E}[I_T]$ (Dufresne closed form). Dashed black: $\mathbb{E
 
 ### Sample GBM paths — matched-book NAV view (§3a)
 
-The matched book's *terminal* P&L is deterministic, but its
-mark-to-market inventory value is not. Phase A writes that value as
+The Matched book's terminal P&L is deterministic, but its
+mark-to-market inventory value is not:
 
 $$
 V_t = (N \cdot P) \cdot (1 - t/T) \cdot S_t
 $$
 
 — (tokens still in inventory) × (current spot). Every path pins to
-zero at $t = T$ (the burn schedule finishes the inventory), but a
-price crash in the middle can carve out a painful interim dip. The
-plot shows sampled $V_t$ trajectories (orange = first path, grey =
-the rest); the next plot quantifies the worst interim dip across
-paths.
+zero at $T$ (the burn schedule finishes the inventory), but a crash
+mid-horizon can carve out a painful interim dip. Sampled $V_t$
+trajectories: orange = first path, grey = the rest.
 
 ```{ojs}
 //| echo: false
@@ -405,20 +347,17 @@ regardless of $S_T$._
 
 ### NAV shortfall vs. schedule (§3a)
 
-The matched book's solvency question is: *"how far below the
-flat-price schedule did NAV dip?"* Formally,
+The Matched book's solvency question: *how far below the flat-price
+schedule did NAV dip?* Formally,
 
 $$
 D := \max_{t \leq T} \left[ N \cdot P \cdot (1 - t/T) \cdot (S_0 - S_t) \right]_+
 $$
 
-— only the below-schedule excursions count ($[x]_+ = \max(x, 0)$); an
-upward excursion is a paper gain, not a solvency event. The histogram
-is the distribution of $D$ across simulated paths. The dashed black
-rule is the 95th percentile (breached ~1 year in 20); the solid black
-rule is the 99th (~1 year in 100). These are the natural capital-
-buffer thresholds — the matched book has deterministic terminal P&L
-but is not "risk-free" in any operational sense.
+— only below-schedule excursions count; paper gains are not solvency
+events. Dashed black: 95th percentile (~1 year in 20). Solid black:
+99th (~1 year in 100). The Matched book has deterministic terminal
+P&L but is not "risk-free" in any operational sense.
 
 ```{ojs}
 //| echo: false
@@ -444,11 +383,11 @@ book even though its terminal P&L is deterministic._
 
 ## Parameter sweep
 
-The single-run view above fixes all parameters. This section instead
-fixes the book (principal 3c) and a single risk summary
-($\mathrm{CVaR}_{95}$), and sweeps the business parameters $(\alpha,
-\mu, \sigma)$. Larger $\mathrm{CVaR}_{95}$ is worse. Data from
-`data/sweep.json`; slice it with the controls below.
+The single-run view above fixes all parameters. Here instead the book
+is fixed (Partial, §3c) and the summary is a single risk statistic
+($\mathrm{CVaR}_{95}$, larger = worse); business parameters $(\alpha,
+\mu, \sigma)$ sweep. Data from `data/sweep.json`; slice it with the
+controls below.
 
 ```{ojs}
 //| echo: false
@@ -467,10 +406,9 @@ viewof pickMu = Inputs.select(sweep.grid.mus, { value: 0.05, label: "drift μ (/
 
 ### Tail risk vs volatility $\sigma$ (fixed $\alpha, \mu$)
 
-At the selected $(\alpha, \mu)$, how does $\mathrm{CVaR}_{95}$ scale
-with $\sigma$? More volatility widens $\mathrm{Var}[I_T]$, fattens
-the principal loss tail, and inflates CVaR — so the curve should be
-monotonically increasing. A flat or non-monotone line is a bug.
+More volatility widens $\mathrm{Var}[I_T]$ and fattens the principal
+loss tail, so the curve should be monotonically increasing. A flat
+or non-monotone line is a bug.
 
 ```{ojs}
 //| echo: false
@@ -501,14 +439,12 @@ tail of $\Pi_\alpha$._
 
 ### Tail risk vs hedge ratio $\alpha$ (fixed $\mu$, $\sigma$ at grid[1])
 
-The dose-response curve for pre-buying. $\sigma$ is held at the
-second grid value (middle-of-the-road) while $\alpha$ sweeps from 0
-(back-to-back) to 1 (fully matched). Phase A §3c gives
-$\mathrm{SD}[\Pi_\alpha] = (1-\alpha) \cdot
-\mathrm{SD}[\Pi_{\mathrm{b2b}}]$, so the CVaR curve should collapse
-roughly linearly toward zero. At $\alpha = 1$ the book is
-deterministic and CVaR resolves to the sign of the matched P&L (a
-single value, not a tail).
+Dose-response for pre-buying. $\sigma$ held at the middle grid value
+while $\alpha$ sweeps 0 (Back-to-back) to 1 (Matched). §3c gives
+$\mathrm{SD}[\Pi_\alpha] = (1-\alpha) \cdot \mathrm{SD}[\Pi_{\mathrm{b2b}}]$,
+so CVaR collapses roughly linearly toward zero. At $\alpha = 1$ the
+book is deterministic and CVaR resolves to the sign of the Matched
+P&L (a single value, not a tail).
 
 ```{ojs}
 //| echo: false
@@ -534,22 +470,17 @@ Plot.plot({
 })
 ```
 
-## §3d — Quota-share syndication ($\beta$)
+## §3d — Syndicated (quota-share, $\beta$)
 
-Phase A §3d adds a second dimension $\beta \in [0, 1]$ — the fraction of
-the $(1 - \alpha)$ stochastic leg ceded to a third-party counterparty
-for an up-front premium $\pi$. The retained P&L
-
-$$
-\Pi_{\mathrm{ret}} = \mathbb{E}[\Pi_\alpha] + (1 - \alpha)(1 - \beta) \cdot (\Pi_{\mathrm{b2b}} - \mathbb{E}[\Pi_{\mathrm{b2b}}])
-$$
-
-(at the fair premium, $\theta = 0$) is an affine rescaling of
-$\Pi_{\mathrm{b2b}}$ with slope $(1-\alpha)(1-\beta)$ around
-$\mathbb{E}[\Pi_\alpha]$. The figures below derive the reshape from the
-sweep cells' $\Pi_{\mathrm{b2b}}$ statistics — **no new Monte Carlo is
-needed** because the affine identity pushes every quantile, CVaR, and
-mean through a closed-form map. The Gaussian CVaR shape factor used by
+See [§3d of the model](phase-a.qmd#d.-syndicated-quota-share-cession-beta-in-0-1)
+for the formulae. At the fair premium ($\theta = 0$),
+$\Pi_{\mathrm{ret}} = \mathbb{E}[\Pi_\alpha] + (1-\alpha)(1-\beta) \cdot
+(\Pi_{\mathrm{b2b}} - \mathbb{E}[\Pi_{\mathrm{b2b}}])$ is an affine
+rescaling of $\Pi_{\mathrm{b2b}}$ with slope $(1-\alpha)(1-\beta)$
+around $\mathbb{E}[\Pi_\alpha]$. The figures below derive from the
+sweep cells' $\Pi_{\mathrm{b2b}}$ statistics — **no new Monte Carlo
+needed**; the affine identity pushes every quantile, CVaR, and mean
+through a closed-form map. The Gaussian CVaR shape factor used by
 the `cvar` premium mode is $\phi(\Phi^{-1}(0.95))/0.05 \approx 2.063$.
 
 ```{ojs}
@@ -569,13 +500,13 @@ viewof pickMode = Inputs.radio(["sharpe", "cvar"], { value: "sharpe", label: "pr
 
 ### Retained CVaR₉₅ vs $\beta$ across hedge ratios $\alpha$
 
-At the selected $(\mu, \sigma, \theta)$, the retained-book tail collapses
-linearly with $(1-\beta)$ for each $\alpha$ — the two axes multiply into
-$(1-\alpha)(1-\beta)$, so the top and bottom lines of this plot are
-$\alpha = 0$ (back-to-back, no internal hedge) and $\alpha = 1$ (fully
-matched, deterministic before syndication). Moving $\theta$ up shifts
-every curve *downward* by $\beta(1-\alpha) \cdot \rho(\theta)$ — the
-risk premium the intermediary pays the counterparty.
+At the selected $(\mu, \sigma, \theta)$, the retained tail collapses
+linearly with $(1-\beta)$ for each $\alpha$ — the two axes multiply
+into $(1-\alpha)(1-\beta)$. Top and bottom curves are $\alpha = 0$
+(Back-to-back, no internal hedge) and $\alpha = 1$ (Matched,
+deterministic pre-syndication). Raising $\theta$ shifts every curve
+downward by $\beta(1-\alpha) \cdot \rho(\theta)$ — the risk premium
+paid to the counterparty.
 
 ```{ojs}
 //| echo: false
@@ -638,11 +569,11 @@ Plot.plot({
 
 ### Fair vs loaded premium across retention
 
-At fixed $\alpha = 0$ (pure back-to-back) the fair premium is
+At $\alpha = 0$ (pure Back-to-back) the fair premium is
 $\pi_{\mathrm{fair}} = \beta \cdot \mathbb{E}[\Pi_{\mathrm{b2b}}]$ —
-linear in $\beta$. Raising $\theta$ carves the loaded premium downward
-proportionally to $\beta \cdot \rho(\theta)$; the gap between the two
-curves is the risk premium the counterparty extracts.
+linear in $\beta$. Raising $\theta$ carves the loaded premium
+downward proportionally to $\beta \cdot \rho(\theta)$. The gap is
+the risk premium the counterparty extracts.
 
 ```{ojs}
 //| echo: false
@@ -684,12 +615,11 @@ Plot.plot({
 
 ### Expected-P&L cost of syndication
 
-At $\theta = 0$ the mean is invariant in $\beta$ — that is the "no free
-lunch" identity. At $\theta > 0$ the intermediary pays the counterparty
-a premium strictly below fair; the shortfall appears directly on its
-expected P&L. This plot is $\mathbb{E}[\Pi_{\mathrm{ret}}] -
-\mathbb{E}[\Pi_\alpha]$ at $\alpha = 0$ as a function of $\beta$, one
-curve per load level.
+At $\theta = 0$ the mean is invariant in $\beta$ — the "no free lunch"
+identity. At $\theta > 0$ the intermediary pays a premium strictly
+below fair and the shortfall shows up directly on expected P&L.
+$\mathbb{E}[\Pi_{\mathrm{ret}}] - \mathbb{E}[\Pi_\alpha]$ at $\alpha =
+0$ vs. $\beta$, one curve per load level.
 
 ```{ojs}
 //| echo: false
@@ -728,26 +658,19 @@ Plot.plot({
 })
 ```
 
-## §3e — Switching strategy ($h$)
+## §3e — Switching ($h$)
 
-§3c and §3d **rescale** the loss tail (multiply it by $(1-\alpha)(1-\beta)$);
-§3e is the first primitive that **truncates** it. The intermediary operates
-the §3b back-to-back book normally, but the first time $S_t$ crosses an upper
-barrier $H = h \cdot S_0$ (stopping time $\tau$), every subsequent retirement
-flow is paid at the fee rate $f_{\mathrm{post}}$ rather than at the fixed
-quote $Q$. The stochastic leg becomes
-
-$$
-\Pi_{\mathrm{sw}}^{(1-\alpha)} = Q \, \lambda \, \tau - P \, \lambda \, I_\tau + f_{\mathrm{post}} \, P \, \lambda \, J_\tau
-$$
-
-and composes with §3c ($\alpha$) and §3d ($\beta$) exactly as $\Pi_{\mathrm{b2b}}$
-did — three orthogonal levers: capital, counterparty, market timing. Because
-$\tau$ is a stopping time rather than a path-average, there is no closed-form
-P&L density; Monte Carlo is authoritative. Under pure GBM the Harrison (1985)
-first-passage distribution anchors $\mathbb{P}[\tau \le T]$ and $\mathbb{E}[\tau \wedge T]$
-(test oracles); Merton jumps invalidate both anchors but raise the switch
-probability by punching through the barrier in one step.
+§3c and §3d **rescale** the loss tail by $(1-\alpha)(1-\beta)$; §3e
+**truncates** it by flipping the stochastic leg from the fixed quote
+$Q$ to the fee rate $f_{\mathrm{post}}$ the first time $S_t$ crosses
+$H = h \cdot S_0$ (stopping time $\tau$). See
+[§3e of the model](phase-a.qmd#e.-switching-barrier-h-geq-1-post-switch-rate-f_mathrmpost)
+for the formulae. Three orthogonal levers — capital, counterparty,
+market timing. Because $\tau$ is a stopping time rather than a
+path-average, there is no closed-form density; Monte Carlo is
+authoritative. Under pure GBM the Harrison (1985) first-passage
+distribution gives test oracles for $\mathbb{P}[\tau \le T]$ and
+$\mathbb{E}[\tau \wedge T]$; Merton jumps inflate both.
 
 ```{ojs}
 //| echo: false
@@ -776,12 +699,11 @@ switchingRows = switchingSweep.cells.map(c => ({
 
 ### CVaR₉₅ and $\mathbb{E}[\Pi]$ vs barrier $h$
 
-The headline operator-decision chart. Left axis: CVaR₉₅ — tightening the
-barrier (lowering $h$) collapses the tail from §3d's wide loss distribution
-down toward the fee book's lightly-negative CVaR. Right axis: expected
-P&L — tightening the barrier simultaneously lifts the mean (moving losses
-into fee-captured revenue). The two lines cross the §3d reference (dashed)
-at the "knee" of the trade-off.
+The headline operator-decision chart. Tightening the barrier (lowering
+$h$) collapses CVaR₉₅ from §3d's wide loss distribution toward the fee
+book's lightly-negative CVaR, and simultaneously lifts $\mathbb{E}[\Pi]$
+by moving losses into fee-captured revenue. The knee against the §3d
+reference (dashed) is the operator's decision point.
 
 ```{ojs}
 //| echo: false
@@ -830,10 +752,10 @@ Plot.plot({
 
 ### Switch-activation profile
 
-Two diagnostics summarising how the barrier is actually exercised: the
-empirical probability of switching over $[0, T]$ and the expected fraction
-of the horizon operated in fee mode. Both drop as $h$ increases; both are
-zero at $h = \infty$ by definition.
+Two diagnostics for how the barrier is exercised: empirical switch
+probability over $[0, T]$ and the expected horizon fraction operated
+in fee mode. Both drop as $h$ increases; both are zero at $h = \infty$
+by definition.
 
 ```{ojs}
 //| echo: false
@@ -862,23 +784,20 @@ Inputs.table(
 
 ## Break-even quote surface $Q^*(\mu, T)$
 
-What per-tonne quote $Q$ equalises *expected* revenue between the
-principal and fee books? The answer is
-$Q^* = (1 + f) \cdot P \cdot S_0 \cdot (e^{\mu T} - 1)/(\mu T)$.
-
-Divide both sides by $(1+f) \cdot P \cdot S_0$ to strip out the
-uninteresting scaling:
+The per-tonne quote that equalises expected revenue between the
+Back-to-back and fee books is $Q^* = (1+f) \cdot P \cdot S_0 \cdot
+(e^{\mu T}-1)/(\mu T)$. Dividing by $(1+f) \cdot P \cdot S_0$:
 
 $$
 \frac{Q^*}{(1+f) \cdot P \cdot S_0} = \frac{e^{\mu T} - 1}{\mu T}.
 $$
 
-The dimensionless ratio is the premium (ratio $> 1$) or discount
-(ratio $< 1$) the principal operator must charge relative to today's
-fee quote, to cover expected drift over the horizon. The dashed rule
-at 1.0 marks the $\mu = 0$ limit; $\mu > 0$ curves sit above
-(appreciation premium), $\mu < 0$ curves sit below (expected
-cheapening). Longer $T$ pushes every non-zero curve further from 1.
+The dimensionless ratio is the premium ($>1$) or discount ($<1$) the
+Back-to-back intermediary must charge relative to today's fee quote
+to cover expected drift. Dashed rule at 1.0 is the $\mu = 0$ limit;
+$\mu > 0$ sits above (appreciation premium), $\mu < 0$ below
+(expected cheapening). Longer $T$ pushes every non-zero curve further
+from 1.
 
 ```{ojs}
 //| echo: false
@@ -929,15 +848,12 @@ collapses onto the dashed unit line._
 
 ## Implementation notes
 
-- **Performance.** The Phase C simulator runs sub-second at 5,000
-  paths × 100 steps on a typical laptop; the sweep and the jump-check
-  MC on this page use the same defaults.
-- **Reproducibility.** The PRNG is a seeded Mulberry32
-  (`src/rng.ts`). A given `(seed, inputs)` pair is deterministic
-  across reloads, both here and in the live Phase C port.
-- **Still baseline.** Retirement flow is deterministic. Phase C
-  iterations will swap in Poisson demand and regime switching behind
-  the same UI; the Merton jump overlay is already live on Phase C.
-
-For the cross-phase synthesis and the deterministic stress-test tool,
-see the [Findings](index.qmd) page.
+- **Performance.** The [Simulator](phase-c.qmd) runs sub-second at
+  5,000 paths × 100 steps on a typical laptop; the sweep and jump-check
+  MC above use the same defaults.
+- **Reproducibility.** Seeded Mulberry32 PRNG (`src/rng.ts`); a given
+  `(seed, inputs)` pair is deterministic across reloads, here and in
+  the live Simulator port.
+- **Still baseline.** Retirement flow is deterministic. Poisson
+  demand and regime switching are queued behind the same UI; the
+  Merton jump overlay is already live.

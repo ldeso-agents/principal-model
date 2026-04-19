@@ -1,44 +1,37 @@
-### Glossary
+```{=html}
+<aside class="glossary-sidebar">
+<details open>
+<summary>Glossary</summary>
+<dl>
+  <dt><code>S<sub>t</sub></code>, <code>P</code></dt>
+  <dd>Token spot price (USD/kVCM) and protocol constant (kVCM / tonne retired).
+  Per-tonne USD protocol price is <code>π<sub>t</sub> = P · S<sub>t</sub></code>.</dd>
 
-- **Geometric Brownian Motion (GBM).** Prices move by random percentage
-  shocks. Two annualised parameters: drift $\mu$ (expected growth rate)
-  and volatility $\sigma$ (size of the jitter). This is the price model
-  underneath Black–Scholes.
-- **Monte Carlo simulation.** Generate many independent random
-  trajectories of $S_t$, compute each book's P&L on each, and read
-  statistics off the sample. Sample error shrinks as
-  $1/\sqrt{n_{\mathrm{paths}}}$.
-- **$I_T := \int_0^T S_t\,dt$.** The area under the price curve over
-  the horizon. It is the single random kernel that drives every
-  stochastic book on this site: the fee book is linear in $I_T$, the
-  back-to-back principal book is affine in $I_T$, and the
-  partially-hedged book is an affine mix of the two.
-- **Coverage $\tau_{\mathrm{cov}} := \min(1,\, k / (N \cdot P))$.** Fraction
-  of the horizon that the pre-purchased inventory lasts under deterministic
-  demand. $\tau_{\mathrm{cov}} = 0$ is fully back-to-back; $\tau_{\mathrm{cov}} = 1$
-  is (at least) fully matched. In Phase B this is the hedge ratio $\alpha$;
-  in Phase C it is derived from inventory $k$ and demand $N \cdot P$.
-- **Barrier $h$, level $H = h \cdot S_0$.** §3e switching strategy. The
-  intermediary flips from fixed-quote principal to live-cost fee the first
-  time $S_t$ crosses the upper barrier $H$. $h$ is the dimensionless ratio
-  over the spot at $t = 0$; $h = \infty$ disables the switch.
-- **Stopping time $\tau := \inf\{t : S_t \ge H\} \wedge T$.** First-passage
-  time of $S_t$ to the §3e barrier, truncated at the horizon. Distinct from
-  the §3c coverage fraction $\tau_{\mathrm{cov}}$: here $\tau$ carries units
-  of time (0 ≤ $\tau$ ≤ $T$) and indexes a random event, not a deterministic
-  schedule.
-- **$I_\tau := \int_0^\tau S_t\,dt$, $J_\tau := \int_\tau^T S_t\,dt$.**
-  Pre- and post-switch slices of the price integral; $I_\tau + J_\tau = I_T$
-  exactly. In §3c with deterministic coverage we recycle the same letter
-  pair replacing $\tau$ by $\tau_{\mathrm{cov}} \cdot T$.
-- **VaR$_{95}$ (Value-at-Risk).** The loss threshold exceeded with 5%
-  probability — the 5th percentile of P&L, sign-flipped. Says
-  *where* the bad tail begins, not how deep it goes.
-- **CVaR$_{95}$ (Conditional VaR / Expected Shortfall).** Mean loss
-  *inside* that worst 5%. Strictly more informative than VaR once the
-  tail is fat or skewed. VaR$_{99}$ / CVaR$_{99}$ are the same at the
-  1% level.
-- **Fee revenue, not P&L.** $R_{\mathrm{fee}} = f \cdot P \cdot \lambda
-  \cdot I_T$ is a revenue, so $R_{\mathrm{fee}} \geq 0$ by construction.
-  Its VaR and CVaR are therefore the *low end of revenue* — "worst
-  case is still a gain, just a smaller one" — not a loss against zero.
+  <dt><code>I<sub>T</sub> = ∫₀<sup>T</sup> S<sub>t</sub> dt</code></dt>
+  <dd>Area under the price curve. The shared random kernel: fee revenue is
+  linear in <code>I<sub>T</sub></code>, back-to-back P&amp;L is affine in
+  <code>I<sub>T</sub></code>.</dd>
+
+  <dt>Coverage <code>τ<sub>cov</sub></code></dt>
+  <dd>Fraction of the horizon pre-bought inventory lasts,
+  <code>min(1, k / (N·P))</code>. The Model calls the same dial
+  <code>α</code>; the Simulator derives it from <code>(k, C<sub>basis</sub>)</code>.</dd>
+
+  <dt>Stopping time <code>τ</code> (switching)</dt>
+  <dd>First time <code>S<sub>t</sub></code> crosses the upper barrier
+  <code>H = h · S<sub>0</sub></code>, truncated at <code>T</code>. Distinct from
+  the coverage fraction above: this one carries units of time.</dd>
+
+  <dt>VaR<sub>95</sub> / CVaR<sub>95</sub></dt>
+  <dd>Loss threshold at the 5% quantile of <code>−Π</code> / mean loss inside
+  that 5% tail. CVaR is the informative figure once a tail is fat or skewed.
+  On the fee book these are "low end of revenue", not loss.</dd>
+
+  <dt>Fee book / principal book</dt>
+  <dd>Fee: markup <code>f · π<sub>t</sub></code> per tonne, no inventory.
+  Principal: fixed quote <code>Q</code>, five variants — Matched (§3a),
+  Back-to-back (§3b), Partial (§3c), Syndicated (§3d), Switching (§3e).</dd>
+</dl>
+</details>
+</aside>
+```

@@ -1,23 +1,20 @@
-# principal-model — Phases B + C
+# principal-model
 
-TypeScript simulator and interactive report for the research note *Klima
-Protocol — Fee-Based vs. Principal Model* ([`research-note.md`](research-note.md),
-Phase A).
+TypeScript simulator and interactive Quarto report for the research
+note *Klima Protocol — Fee-Based vs. Principal Model*
+([`research-note.md`](research-note.md)).
 
-- **Phase B** reproduces the §1–§5 closed-form quantities computationally,
-  estimates the §4 tail-risk metrics by Monte Carlo, and exposes the
-  results through a Quarto + Observable notebook.
-- **Phase C** is a browser-native interactive simulator
-  ([`report/phase-c.qmd`](report/phase-c.qmd)). Every slider re-runs a
-  fresh Monte Carlo on the parameters of your choosing (starting kVCM
-  price, starting carbon price per tonne, drift and variance, optional
-  Merton jump-diffusion overlay via three jump sliders, initial
-  inventory as tokens + cost basis, constant retirements per day), and a
-  drawable custom-curve scenario (with an Alchemy-fed historical preset)
-  evaluates the three books on a single user-sketched path. Subsequent
-  Phase C iterations will swap in the remaining richer dynamics (regime
-  switching, Poisson demand, full calibration, dynamic hedging) behind
-  the same UI.
+The report has four pages: **Summary** (index.qmd, findings +
+drawable stress-test tool), **Model** (phase-a.qmd, the research
+note), **Validation** (phase-b.qmd, closed-form vs. Monte Carlo
+cross-check), and **Simulator** (phase-c.qmd, live in-browser Monte
+Carlo). Every slider on the Simulator re-runs a fresh pass on the
+parameters of your choosing (starting token price, starting carbon
+price per tonne, drift and variance, optional Merton jump overlay,
+initial inventory as tokens + cost basis, constant retirements per
+day). A drawable custom-curve scenario on the Summary page (with an
+Alchemy-fed historical preset) evaluates the three books on a single
+user-sketched path.
 
 ## Requirements
 
@@ -68,12 +65,12 @@ Artifacts are written to `report/data/`:
 ## Interactive report
 
 ```sh
-# Phase B — pre-computed JSON, requires a simulate+sweep pass first.
+# Validation page — pre-computed JSON, requires a simulate+sweep pass first.
 npm run simulate -- --seed 42
 npm run sweep    -- --seed 42
 quarto preview report/phase-b.qmd
 
-# Phase C — live in-browser Monte Carlo, no JSON pre-pass needed.
+# Simulator page — live in-browser Monte Carlo, no JSON pre-pass needed.
 quarto preview report/phase-c.qmd
 ```
 
@@ -89,15 +86,14 @@ src/
   models.ts                  closed-form + MC for fee, 3a, 3b, 3c; break-even Q*
   report.ts                  §4/§5 table assembly + histograms
   cli.ts                     entrypoint — prints tables, writes JSON
-  fetch-historical-price.ts  Alchemy Prices pull for the Phase C historical preset
+  fetch-historical-price.ts  Alchemy Prices pull for the Summary page's historical preset
 test/                        vitest unit + cross-check suite (43 tests)
 report/
-  index.qmd                  landing — findings + drawable stress-test tool
-  phase-a.qmd                includes research-note.md (Phase A)
-  phase-b.qmd                Phase B — closed-form vs. Monte Carlo validation
-  phase-c.qmd                Phase C — live in-browser Monte Carlo simulator
-  _glossary.qmd              shared glossary partial (included by B + C)
-  _alpha-bridge.qmd          α ↔ (k, C_basis) translator partial
+  index.qmd                  Summary — findings + drawable stress-test tool
+  phase-a.qmd                Model — includes research-note.md
+  phase-b.qmd                Validation — closed-form vs. Monte Carlo cross-check
+  phase-c.qmd                Simulator — live in-browser Monte Carlo
+  _glossary.qmd              shared glossary sidebar (included by every page)
   data/                      emitted JSON artifacts
 ```
 

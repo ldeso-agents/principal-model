@@ -1,11 +1,15 @@
 ---
-title: "Phase A — Research note"
+title: "Model"
 subtitle: "Mathematical framework, closed-form moments, risk-metric menu"
 shift-heading-level-by: 1
 format:
   html:
     toc: true
     toc-depth: 3
+    toc-location: left
+    css: lib/phase-styles.css
 ---
+
+{{< include _glossary.qmd >}}
 
 {{< include ../research-note.md >}}

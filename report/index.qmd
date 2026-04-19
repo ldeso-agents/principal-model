@@ -25,76 +25,58 @@ format:
 </style>
 ```
 
-A carbon-retirement intermediary buys kVCM on the open market and
-retires it on behalf of clients. Should it charge a **fee** (markup on
-the live token price) or quote a **fixed principal price** and take on
-the inventory risk itself? The short answer: picking a quote that
-matches expected revenue does *not* match the risk profile — the
-principal book trades mean preservation for a left-skewed loss tail.
+{{< include _glossary.qmd >}}
 
-The rest of this page distils the five findings the programme surfaces
-and gives you a tool to stress-test them against any price trajectory
-you care to sketch. The three phase pages below carry the derivations,
-the closed-form cross-checks, and a live simulator.
+A carbon-retirement intermediary buys carbon tokens (kVCM) on the open
+market and burns them to retire carbon credits on behalf of clients.
+It can charge a **fee** — a markup on the live token price — or quote
+a **fixed USD price** and carry the inventory risk itself. This site
+quantifies the revenue and risk each choice produces, and how the
+intermediary can reshape the risk once committed.
+
+The headline answer: a fixed quote that matches the fee book's
+expected revenue does *not* match its risk. The principal book trades
+that mean preservation for a left-skewed loss tail — but the tail is
+shapeable, first by pre-buying inventory and syndicating a slice, then
+(decisively) by holding the option to flip back to fee pricing if the
+token rallies.
 
 ## Findings
 
-1. **Fee revenue is non-negative; unhedged principal risk is
-   unbounded.** The fee book's payout is $R_{\mathrm{fee}} = f \cdot P
-   \cdot \lambda \cdot I_T$, which is always $\geq 0$ but scales with
-   the token price. The unhedged principal book (§3b) is short the
-   token at a fixed quote $Q$: upside is capped at $Q \cdot N$,
-   downside is unbounded when the token rallies.
+1. **Matching means does not match distributions.** Set the fixed
+   quote to $Q^* = (1+f) \cdot P \cdot S_0 \cdot (e^{\mu T}-1)/(\mu
+   T)$ and the fee and back-to-back principal books have identical
+   $\mathbb{E}[\Pi]$. Their distributions are near-mirror images,
+   however: both are driven by the shared kernel $I_T = \int_0^T S_t\,
+   dt$, entered with a plus sign in the fee book (bounded below by
+   zero) and a minus sign in the principal book (upside capped at $Q
+   \cdot N$, downside unbounded). Picking $Q = Q^*$ trades mean
+   preservation for a left-skewed loss tail. This is the programme's
+   central asymmetry.
 
-2. **Pre-buying inventory is the natural hedge, and it works
-   linearly.** Variance of the partially-hedged book collapses as
-   $(1-\tau)^2$ in coverage $\tau$ (equivalently $(1-\alpha)^2$ in
-   Phase A §3c), so SD and CVaR collapse linearly. Doubling coverage
-   roughly halves tail loss.
-
-3. **Cost basis shifts the book, it does not reshape it.** Raising
-   $C_{\mathrm{basis}}$ translates the principal book's P&L
-   distribution leftward by the same amount; SD, VaR, and CVaR are
-   untouched. Risk managers should watch coverage $\tau$, not
+2. **Hedging the principal book is a linear dial.** Pre-buying a
+   fraction $\alpha$ of inventory collapses the variance as
+   $(1-\alpha)^2$ and so collapses SD and CVaR linearly: doubling
+   coverage roughly halves the tail loss. Raising the cost basis
+   $C_{\mathrm{basis}}$ on that inventory translates the distribution
+   leftward by the same amount but does *not* touch SD, VaR, or CVaR —
+   basis is a sunk cost. Risk managers should watch coverage, not
    unrealised gain or loss on inventory.
 
-4. **Over- and under-hedging produce different *kinds* of tail.**
-   Under-hedged ($k < N \cdot P$), the residual exposure is
-   $-P\lambda J_\tau$: losses come from high prices, via an averaged
-   log-normal — an unbounded but softened tail. Over-hedged ($k > N
-   \cdot P$), the residual exposure is $+k_{\mathrm{left}} \cdot S_T$:
-   losses come from low prices, via a single terminal point, so the
-   loss tail is *bounded* (prices can't go below zero) and the heavy
-   log-normal mass lands on the gain side. Crossing $k = N \cdot P$
-   switches the kind of risk, not just the amount.
-
-5. **$Q = Q^*$ equalises means, not distributions.** At the break-even
-   quote $Q^* = (1+f) \cdot P \cdot S_0 \cdot (e^{\mu T} - 1)/(\mu T)$,
-   the fee book and the back-to-back principal book have identical
-   $\mathbb{E}[\Pi]$. Their distributions are near-mirror images —
-   same random kernel $I_T$, entered with opposite signs — so the
-   principal book trades mean preservation for a left-skewed loss
-   tail. This is the programme's headline asymmetry.
-
-6. **A switching strategy (§3e) *truncates* the loss tail rather than
-   rescaling it.** §3c ($\alpha$, pre-purchase) and §3d ($\beta$,
-   syndication) multiply the left tail by constants; they shrink it
-   but cannot cap it. If the operator quotes $Q$ up front but keeps
-   the option to flip to fee-based pricing the first time $S_t$
-   crosses an upper barrier $H = h \cdot S_0$ (stopping time $\tau$),
-   every path where the barrier fires has its post-barrier exposure
-   replaced by the non-negative §2 fee book on $[\tau, T]$. At $h =
-   1.25$ under the default calibration, the §3e tail is ~80× smaller
-   than §3b's — CVaR₉₅ collapses from ≈ \$3,900 to ≈ \$49 — while
-   $\mathbb{E}[\Pi]$ actually *rises* (fee revenue replaces the
-   tail-heavy b2b payoff on switched paths). $h \to \infty$ recovers
-   §3d; $h \le 1$ recovers the pure fee book. The three levers
-   $(\alpha, \beta, h)$ compose multiplicatively and consume distinct
-   resources — capital, counterparty credit, market timing — giving
-   the operator a three-dimensional Pareto surface. This is the
-   programme's answer to the headline asymmetry of finding 5: the
-   intermediary can preserve principal-book expected revenue **and**
-   bound the loss tail by holding the switch option open.
+3. **A switch truncates the tail rather than rescaling it.**
+   Pre-buying (§3c) and quota-share syndication (§3d) multiply the
+   left tail by constants — they shrink it but cannot bound it. If
+   the intermediary quotes $Q$ up front but keeps the option to flip
+   to fee pricing the first time $S_t$ crosses an upper barrier $H =
+   h \cdot S_0$ (§3e), every path where the barrier fires has its
+   post-barrier exposure replaced by the non-negative fee book on
+   $[\tau, T]$. At $h = 1.25$ under the default calibration, CVaR₉₅
+   collapses from ≈ \$3,900 to ≈ \$49 (≈ 80×) while $\mathbb{E}[\Pi]$
+   *rises*. The three levers $(\alpha, \beta, h)$ compose
+   multiplicatively and consume distinct resources — capital,
+   counterparty credit, market timing — giving a three-dimensional
+   Pareto surface that closes the finding-1 asymmetry: preserve
+   principal-book expected revenue *and* bound the loss tail.
 
 ---
 
@@ -104,20 +86,9 @@ The findings above describe *averages* over all futures the price
 model allows. To test a specific story — *"what if the token crashes
 at mid-year?"*, *"what if we replay the last twelve months of kVCM?"*
 — fix one trajectory and read the P&L straight off it. Draw (or
-click-and-drag) the curve below; the three books' P&L is recomputed
-in real time, alongside the comparable Monte Carlo mean.
-
-Use this tool to answer three flavours of question:
-
-- **Named stress scenarios.** "If the token crashes in month 7, do we
-  still have the capital to finish the year?" Toolbar presets
-  (crash, spike, linear ±50%, historical kVCM) cover the common cases.
-- **Sanity-check the MC.** A "Flat @ $S_0$" curve with $\mu = 0$
-  should produce book P&Ls close to the MC means. If it doesn't, the
-  integral wiring is suspect.
-- **Path-specific vs. path-averaged loss.** The `drawn − MC mean`
-  column in the table below quantifies how much *this specific story*
-  differs from the long-run average — the essence of a stress test.
+click-and-drag) the curve below; the three books' P&L recomputes in
+real time, alongside the comparable Monte Carlo mean. Toolbar presets
+(crash, spike, linear ±50%, historical kVCM) cover the common cases.
 
 ::: {.callout-note appearance="simple"}
 ## How the curve is fed into the books
@@ -126,33 +97,31 @@ The drawn samples define a base path. With noise variance
 $\sigma^2_{\mathrm{noise}} > 0$, an accumulated log-normal shock is
 layered on top (seeded by the PRNG slider for reproducibility). All
 three books use the same formulas as the Monte Carlo: $I_T$ and the
-tail integral are taken over the realised path by the trapezoid rule,
+tail integral are taken over the realised path by the trapezoid rule;
 $S_T$ is the last sample. Leave noise at zero to read deterministic
-P&L off the curve you see; raise it to ask how robust a narrative is
-to typical day-to-day jitter.
+P&L off the curve; raise it to test how robust a narrative is to
+typical day-to-day jitter.
 :::
 
 ### Presets
 
-Each toolbar button installs a starting shape that you can then refine
-by hand.
+Each toolbar button installs a starting shape that you can refine by
+hand.
 
 - **Flat @ $S_0$** — the constant path. Under $\mu = 0$ this is GBM's
-  mean path, so the three book P&Ls here should be close to the MC
-  means.
-- **Linear +50% / −50%** — constant-rate drift up or down. A quick
-  calibration of how $\mu$ acts on each book.
-- **Crash @ ½T** — "What if the token collapses at mid-year?"
-  Particularly informative when coverage is just under 100%: the
-  crash may land inside the uncovered tail window.
-- **Spike @ ⅓T** — "What if there's a brief rally the back-to-back
-  book has to buy through?"
-- **Random walk** — a hand-drawn approximation of GBM. Useful as a
-  "typical realisation" reference, not a substitute for the MC.
-- **Historical** — the real kVCM series (loaded from
-  `data/kvcm-historical.json`, populated by `npm run fetch:prices`).
-  Horizon auto-resizes to match; the button is disabled when the data
-  file is missing.
+  mean path, so the three book P&Ls should land close to the MC means.
+- **Linear +50% / −50%** — a quick calibration of how $\mu$ acts on
+  each book.
+- **Crash @ ½T** — a mid-year collapse. Informative when coverage is
+  just under 100%: the crash may land inside the uncovered tail window.
+- **Spike @ ⅓T** — a brief rally the back-to-back book has to buy
+  through.
+- **Random walk** — a hand-drawn approximation of GBM; a "typical
+  realisation" reference, not a substitute for the MC.
+- **Historical** — the real kVCM series from
+  `data/kvcm-historical.json` (populated by `npm run fetch:prices`).
+  Horizon auto-resizes; the button is disabled when the file is
+  missing.
 
 ```{ojs}
 //| echo: false
@@ -191,9 +160,8 @@ buildDate = {
 
 ::: {.pc-controls}
 The sliders set inventory, contract, and horizon. The comparison Monte
-Carlo on the right runs at fixed Phase C defaults ($\mu = 0.05$,
-$\sigma^2 = 0.25$, no jumps); to vary those, use the
-[Phase C simulator](phase-c.qmd).
+Carlo on the right runs at fixed defaults ($\mu = 0.05$, $\sigma^2 =
+0.25$, no jumps); to vary those, use the [Simulator](phase-c.qmd).
 
 ### Price process
 
@@ -812,79 +780,30 @@ Inputs.table(customRows, {
 })
 ```
 
-_The **drawn** column is the deterministic P&L implied by the trajectory
-you sketched; the **MC mean** column is $\mathbb{E}[\Pi]$ from a
-self-contained Monte Carlo at the Phase C defaults ($\mu = 0.05$,
+_The **drawn** column is the deterministic P&L implied by the
+trajectory you sketched; the **MC mean** column is $\mathbb{E}[\Pi]$
+from a self-contained Monte Carlo at fixed defaults ($\mu = 0.05$,
 $\sigma^2 = 0.25$, no jumps, 5,000 paths); the **diff** shows how this
 specific scenario compares to the average across random GBM futures._
 
 **Reading the diff column.**
 
-- **Positive diff on fee.** You drew a high-price path; fee revenue
-  exceeded the long-run average. Fee P&L is linear in $I_T$, so the
-  diff is proportional to $\bar S - \bar S_{\mathrm{MC}}$ with $\bar S
-  = I_T / T$.
 - **Negative diff on principal (custom).** The token was more
   expensive over the uncovered tail $[\tau T, T]$ than GBM expects —
   the natural stress-test signal.
-- **Diff ≈ 0 everywhere.** The curve is "typical": a plausible GBM
-  future, not a stress scenario.
-- **No sensitivity to the curve?** Check coverage. At $\tau = 1$ the
-  custom book is deterministic and path-independent.
+- **Diff ≈ 0.** The curve is "typical": a plausible GBM future, not
+  a stress scenario. At $\tau = 1$ the custom book is deterministic
+  and path-independent, so expect zero sensitivity to the curve.
 
 :::
 
 ::::
 
-## Methods
-
-The findings above come from three interlocking pieces of work.
-
-::: {.grid}
-
-::: {.g-col-12 .g-col-md-4}
-### [Phase A — Research note](phase-a.qmd)
-
-The mathematical framework. Sets up the price process, derives
-closed-form moments of $I_T$ under GBM, writes out the fee book and
-the three principal variants (matched, back-to-back, partially
-hedged), and gives the break-even quote $Q^*$ in closed form.
-Extended in §6 to compensated Merton jump-diffusion.
-
-[Read the note →](phase-a.qmd)
-:::
-
-::: {.g-col-12 .g-col-md-4}
-### [Phase B — Validation](phase-b.qmd)
-
-Closed-form vs. Monte Carlo cross-check. Confirms the Phase A means
-and variances numerically, adds the tail metrics (VaR, CVaR, loss
-probability) that have no closed form, and plots how the hedge-ratio
-response curves look across $(\alpha, \mu, \sigma)$.
-
-[Open the scorecard →](phase-b.qmd)
-:::
-
-::: {.g-col-12 .g-col-md-4}
-### [Phase C — Simulator](phase-c.qmd)
-
-Live in-browser Monte Carlo. Every parameter is a slider; the three
-books' distributions re-compute on every drag. Replaces the Phase B
-hedge ratio $\alpha$ with the raw inventory state $(k,
-C_{\mathrm{basis}})$, so inventory acquired earlier at a different
-price can be studied directly. Merton jumps are live.
-
-[Launch the sandbox →](phase-c.qmd)
-:::
-
-:::
-
 ## Scope
 
-The baseline is GBM with an optional Merton jump-diffusion overlay and
-deterministic demand; gas, on-chain slippage, discounting, and credit
-are out of scope. The
-[Phase A note §7](phase-a.qmd#limitations-and-next-steps) is the
-authoritative table of what is and isn't modelled, and what is queued
-next (Poisson demand, regime switching, historical calibration,
-dynamic hedging). Treat all outputs as illustrative, not forecasts.
+Baseline: GBM with an optional Merton jump-diffusion overlay and
+deterministic retirement demand. Gas, on-chain slippage, discounting,
+and credit are out of scope; the
+[§7 limitations table](phase-a.qmd#limitations-and-next-steps) is
+authoritative on what is and isn't modelled. Treat all outputs as
+illustrative, not forecasts.
