@@ -4,21 +4,18 @@
    each viewport side. No runtime JS. */
 
 :root {
-  /* Sidebar width auto-expands with the viewport so gutters on very
-     wide screens don't stay oversized; clamp() keeps them usable on
-     1400px laptops and from growing beyond something sensible on huge
-     monitors. The calc() term equals the available gutter when the
-     centred content column is --content-w, leaving --side-inside-gap
-     between sidebar and content. */
+  /* Content column stays at --content-w on every page. Sidebars take
+     the full remaining gutter: max() handles narrow viewports where
+     the gutter would round below --side-min. No ceiling — at wider
+     viewports the gutter is wide, so the sidebars are wide, which is
+     exactly the "fill the space" behaviour we want. */
   --content-w: 900px;
   --side-min: 220px;
-  --side-max: 340px;
   --side-offset: 0.75rem;
   --side-inside-gap: 1.25rem;
-  --side-w: clamp(
+  --side-w: max(
     var(--side-min),
-    calc((100vw - var(--content-w)) / 2 - var(--side-offset) - var(--side-inside-gap)),
-    var(--side-max)
+    calc((100vw - var(--content-w)) / 2 - var(--side-offset) - var(--side-inside-gap))
   );
   --side-top: 5rem;
   --side-gap: 0.6rem;
@@ -162,11 +159,24 @@ nav#TOC > ul { font-size: 0.82rem; }
   }
 
   /* Pin the centred body column to --content-w regardless of which grid
-     template Quarto picked for this page (toc-left, fullcontent, etc.). */
+     template Quarto picked for this page (toc-left, fullcontent, etc.).
+     main.content normally sits in the narrow `body-content` track, which
+     differs between article and toc-left templates; span every track so
+     max-width and auto margins determine width and position instead. */
   main.content {
+    grid-column: 1 / -1 !important;
     max-width: var(--content-w) !important;
     margin-left: auto !important;
     margin-right: auto !important;
+  }
+  /* main.content keeps its own inner page-columns grid; neutralise that
+     too so descendant paragraphs fill the full centred column. */
+  main.content {
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+  main.content > * {
+    grid-column: auto !important;
   }
 }
 
