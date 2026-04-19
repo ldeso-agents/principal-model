@@ -1,0 +1,34 @@
+### Glossary
+
+- **Geometric Brownian Motion (GBM).** Prices move by random percentage
+  shocks. Two annualised parameters: drift $\mu$ (expected growth rate)
+  and volatility $\sigma$ (size of the jitter). This is the price model
+  underneath Black–Scholes.
+- **Monte Carlo simulation.** Generate many independent random
+  trajectories of $S_t$, compute each book's P&L on each, and read
+  statistics off the sample. Sample error shrinks as
+  $1/\sqrt{n_{\mathrm{paths}}}$.
+- **$I_T := \int_0^T S_t\,dt$.** The area under the price curve over
+  the horizon. It is the single random kernel that drives every
+  stochastic book on this site: the fee book is linear in $I_T$, the
+  back-to-back principal book is affine in $I_T$, and the
+  partially-hedged book is an affine mix of the two.
+- **$J_\tau := \int_{\tau T}^{T} S_t\,dt$.** The same integral, but
+  restricted to the uncovered tail window (after inventory runs out).
+  Drives the custom-inventory book.
+- **Coverage $\tau := \min(1,\, k / (N \cdot P))$.** Fraction of the
+  horizon that the pre-purchased inventory lasts under deterministic
+  demand. $\tau = 0$ is fully back-to-back; $\tau = 1$ is (at least)
+  fully matched. In Phase B this is the hedge ratio $\alpha$; in Phase
+  C it is derived from inventory $k$ and demand $N \cdot P$.
+- **VaR$_{95}$ (Value-at-Risk).** The loss threshold exceeded with 5%
+  probability — the 5th percentile of P&L, sign-flipped. Says
+  *where* the bad tail begins, not how deep it goes.
+- **CVaR$_{95}$ (Conditional VaR / Expected Shortfall).** Mean loss
+  *inside* that worst 5%. Strictly more informative than VaR once the
+  tail is fat or skewed. VaR$_{99}$ / CVaR$_{99}$ are the same at the
+  1% level.
+- **Fee revenue, not P&L.** $R_{\mathrm{fee}} = f \cdot P \cdot \lambda
+  \cdot I_T$ is a revenue, so $R_{\mathrm{fee}} \geq 0$ by construction.
+  Its VaR and CVaR are therefore the *low end of revenue* — "worst
+  case is still a gain, just a smaller one" — not a loss against zero.

@@ -1,0 +1,24 @@
+::: {.callout-note appearance="simple"}
+## Phase B vs. Phase C: how the hedge is parameterised
+
+Phase B specifies the principal book's pre-purchase as a single ratio
+$\alpha \in [0, 1]$ and assumes the tokens were bought today at $S_0$.
+Phase C replaces that with the **raw inventory state** $(k,\,
+C_{\mathrm{basis}})$: the kVCM tokens on hand plus what they cost.
+
+The Phase B setting is the special case
+$$
+k = \alpha \cdot N \cdot P, \qquad
+C_{\mathrm{basis}} = \alpha \cdot N \cdot P \cdot S_0.
+$$
+Phase C's form lifts the "bought today at $S_0$" assumption so
+inventory acquired earlier at a different price can be studied
+directly. The back-to-back book $\Pi_{\mathrm{b2b}}$ is unchanged
+across phases and is the shared anchor for cross-reading the summary
+tables.
+
+| Phase B | Phase C equivalent |
+| --- | --- |
+| Hedge ratio $\alpha$ | Coverage $\tau = \min(1,\, k/(N \cdot P))$ |
+| $\Pi_\alpha$ | $\Pi_{\mathrm{cust}}$ (coincides when $C_{\mathrm{basis}} = k \cdot S_0$) |
+:::
