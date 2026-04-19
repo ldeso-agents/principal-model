@@ -99,3 +99,75 @@
   font-weight: 500;
 }
 .pc-reset button:hover { background: #eef; border-color: #555; }
+
+/* Glossary sidebar: a floating, collapsible reference card included on
+   every page (see _glossary.qmd). Fixed to the top-right below the
+   Quarto navbar so the reader can check a symbol without scrolling.
+   Collapses to a "Glossary" pill when closed; falls back to an inline
+   block on narrow viewports. */
+.glossary-sidebar {
+  position: fixed;
+  top: 5rem;
+  right: 0.75rem;
+  width: min(280px, calc(100vw - 1.5rem));
+  z-index: 900;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.glossary-sidebar details {
+  background: #fafafa;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem 0.6rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+}
+.glossary-sidebar summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0;
+  list-style: none;
+}
+.glossary-sidebar summary::-webkit-details-marker { display: none; }
+.glossary-sidebar summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.35rem;
+  transition: transform 0.12s ease-out;
+}
+.glossary-sidebar details[open] > summary::before { transform: rotate(90deg); }
+.glossary-sidebar dl { margin: 0.4rem 0 0; }
+.glossary-sidebar dt {
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  color: #1a3a6b;
+  margin-top: 0.55rem;
+}
+.glossary-sidebar dt:first-child { margin-top: 0; }
+.glossary-sidebar dd {
+  margin: 0.15rem 0 0;
+  color: #333;
+}
+.glossary-sidebar code {
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0 0.18rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+}
+
+/* On narrow viewports, unfix the sidebar and render it inline at the
+   page location where the include landed (top of the body). Hide the
+   shadow so it blends with surrounding content. */
+@media (max-width: 1200px) {
+  .glossary-sidebar {
+    position: static;
+    width: auto;
+    margin: 0 0 1rem;
+  }
+  .glossary-sidebar details { box-shadow: none; max-height: none; }
+}
