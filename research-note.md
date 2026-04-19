@@ -204,7 +204,7 @@ $$
 
 As $\mu \to 0$, $Q^* \to (1 + f) \cdot P \cdot S_0$ — the fee-based time-zero quote. For $\mu > 0$ the principal model must quote *above* that to compensate for expected kVCM appreciation; for $\mu < 0$ it quotes below.
 
-**Asymmetry observation.** Even at $Q = Q^*$, the two books have radically different risk profiles: the fee book's revenue is bounded below by $0$ (never negative), while the back-to-back principal book has the same variance but a *left-skewed* loss tail. Matching means does not match distributions.
+**Asymmetry observation.** Matching means does not match distributions. At $Q = Q^*$ the two books share the kernel $I_T$ and therefore share variance; but the fee book enters $I_T$ with a plus sign (bounded below by $0$) while the back-to-back book enters it with a minus sign (left-skewed loss tail). The principal book trades mean preservation for a downside tail the fee book does not have.
 
 ## 6. Compensated Merton jump-diffusion
 
@@ -279,13 +279,11 @@ GBM anchor).
 
 ### Itô deltas are unchanged in expectation
 
-Because the jump contribution to $\mathbb{E}[S_t]$ is zero, the fee and 3b
-delta expressions in §4 continue to apply verbatim. The static hedge ratio
-from §3a, $(P \cdot \lambda) \cdot (T - t)$ tokens at time $t$, is therefore
-still the right hedge in expectation under compensated Merton — though the
-realised hedging error has fatter tails.
+The jump contribution to $\mathbb{E}[S_t]$ is zero, so the §4 delta expressions and the §3a static hedge $(P \cdot \lambda) \cdot (T - t)$ carry over verbatim under compensated Merton — with fatter realised hedging error.
 
 ## 7. Limitations and next steps
+
+This table is the authoritative scope statement for the programme; the landing page links here rather than duplicating it.
 
 | Baseline simplification | Removed in |
 | --- | --- |

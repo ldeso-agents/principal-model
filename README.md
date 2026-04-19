@@ -92,10 +92,12 @@ src/
   fetch-historical-price.ts  Alchemy Prices pull for the Phase C historical preset
 test/                        vitest unit + cross-check suite (43 tests)
 report/
-  index.qmd                  landing page linking Phases A / B / C
+  index.qmd                  landing — findings + drawable stress-test tool
   phase-a.qmd                includes research-note.md (Phase A)
-  phase-b.qmd                Phase B — Quarto + Observable notebook
-  phase-c.qmd                Phase C — live in-browser Monte Carlo + custom curve
+  phase-b.qmd                Phase B — closed-form vs. Monte Carlo validation
+  phase-c.qmd                Phase C — live in-browser Monte Carlo simulator
+  _glossary.qmd              shared glossary partial (included by B + C)
+  _alpha-bridge.qmd          α ↔ (k, C_basis) translator partial
   data/                      emitted JSON artifacts
 ```
 

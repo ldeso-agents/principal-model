@@ -12,15 +12,13 @@ website:
   navbar:
     left:
       - href: index.qmd
-        text: Home
+        text: Findings
       - href: phase-a.qmd
         text: Phase A — Note
       - href: phase-b.qmd
-        text: Phase B — Simulator
+        text: Phase B — Validation
       - href: phase-c.qmd
-        text: Phase C — Interactive
-      - href: conclusions.qmd
-        text: Conclusions
+        text: Phase C — Simulator
 
 format:
   html:
