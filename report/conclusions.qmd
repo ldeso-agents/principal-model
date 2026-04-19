@@ -325,9 +325,9 @@ conclusionsResetButton = {
 ```{ojs}
 //| echo: false
 import {
-  makeRng, xTicksAnchoredRight, formatTickDate,
+  mulberry32, xTicksAnchoredRight, formatTickDate,
   simulate, summarise,
-} from "./lib/ojs-helpers.js"
+} from "./lib/compiled/src/core/index.js"
 ```
 
 ```{ojs}
@@ -450,7 +450,7 @@ viewof customCurve = {
       for (let k = 0; k < nPoints; k++) realised[k] = values[k];
       return;
     }
-    const rng = makeRng(seedVal);
+    const rng = mulberry32(seedVal);
     let logNoise = 0;
     realised[0] = values[0];
     for (let k = 1; k < nPoints; k++) {

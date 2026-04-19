@@ -3,7 +3,7 @@
 // jumps, so λ_J = 0 reproduces pure GBM bit-for-bit and E[S_t] stays S_0·e^{μ t}
 // for any (λ_J, μ_J, σ_J).
 
-import type { Rng } from "./rng.ts";
+import type { Rng } from "./rng.js";
 
 export interface GbmPath {
   /** Prices at t_0 = 0, …, t_N = T. Length nSteps + 1. */

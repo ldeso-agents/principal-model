@@ -1,10 +1,10 @@
 // Per-model P&L closed-form moments and Monte Carlo sampler. See §2, §3, §5.
 
-import { samplePath } from "./gbm.ts";
-import { gbmMoments, expm1OverX } from "./moments.ts";
-import type { Params } from "./params.ts";
-import { mulberry32 } from "./rng.ts";
-import { shortfallVsSchedule } from "./risk.ts";
+import { samplePath } from "./gbm.js";
+import { gbmMoments, expm1OverX } from "./moments.js";
+import type { Params } from "../params.js";
+import { mulberry32 } from "./rng.js";
+import { shortfallVsSchedule } from "./risk.js";
 
 export interface ClosedForm {
   fee: { mean: number; variance: number; sd: number };

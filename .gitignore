@@ -8,3 +8,4 @@ report/data/*.json
 report/.quarto/
 report/_site/
 report/report_files/
+report/lib/compiled/

@@ -2,10 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildReport } from "./report.ts";
-import { closedForm } from "./models.ts";
-import type { Params } from "./params.ts";
-import { defaultParams, withOverrides } from "./params.ts";
+import { buildReport } from "./report.js";
+import { closedForm } from "./core/models.js";
+import type { Params } from "./params.js";
+import { defaultParams, withOverrides } from "./params.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(HERE, "..", "report", "data");
