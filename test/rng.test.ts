@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mulberry32 } from "../src/rng.ts";
+import { mulberry32 } from "../src/core/rng.js";
 
 describe("mulberry32", () => {
   it("is deterministic for a fixed seed", () => {

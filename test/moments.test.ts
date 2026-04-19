@@ -5,7 +5,7 @@ import {
   gbmMoments,
   secondMomentIt,
   varianceIt,
-} from "../src/moments.ts";
+} from "../src/core/moments.js";
 
 describe("expm1OverX", () => {
   it("returns 1 at x = 0", () => {

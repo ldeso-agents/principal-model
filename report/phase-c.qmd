@@ -644,7 +644,7 @@ out to the network, and refreshing the page is a clean reset.
 //| echo: false
 import {
   expm1OverX, xTicksForHorizon, simulate, summarise,
-} from "./lib/ojs-helpers.js"
+} from "./lib/compiled/src/core/index.js"
 ```
 
 ## Monte Carlo run

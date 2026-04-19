@@ -10,8 +10,9 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+    "noEmit": false,
+    "outDir": "report/lib/compiled",
+    "sourceMap": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]

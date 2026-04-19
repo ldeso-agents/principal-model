@@ -1,15 +1,15 @@
 // Assembles the §4 / §5 report table and JSON artifact from a simulation run.
 
-import type { ClosedForm, McResult } from "./models.ts";
-import { closedForm, simulate } from "./models.ts";
-import type { Params } from "./params.ts";
+import type { ClosedForm, McResult } from "./core/models.js";
+import { closedForm, simulate } from "./core/models.js";
+import type { Params } from "./params.js";
 import {
   conditionalVaR,
   probLoss,
   quantile,
   summarize,
   valueAtRisk,
-} from "./risk.ts";
+} from "./core/risk.js";
 
 export interface ModelRow {
   name: string;

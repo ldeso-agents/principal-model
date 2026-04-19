@@ -62,6 +62,52 @@ export function probLoss(pnl: ArrayLike<number>): number {
   return k / pnl.length;
 }
 
+/** Full per-sample P&L summary: mean/SD/95% CI, historical VaR/CVaR at 95
+ *  and 99, loss probability, Sharpe. Bundles the metrics the OJS report
+ *  cells need into one pass. Returns variance = 0 (and sharpe = null) for
+ *  degenerate samples so callers don't have to special-case n < 2. */
+export interface FullSummary {
+  mean: number;
+  sd: number;
+  stderr: number;
+  ci95: number;
+  var95: number;
+  var99: number;
+  cvar95: number;
+  cvar99: number;
+  probLoss: number;
+  sharpe: number | null;
+}
+
+export function summarise(samples: ArrayLike<number>): FullSummary {
+  const n = samples.length;
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += samples[i] as number;
+  const mean = n > 0 ? sum / n : 0;
+  let sse = 0;
+  for (let i = 0; i < n; i++) {
+    const d = (samples[i] as number) - mean;
+    sse += d * d;
+  }
+  const variance = n > 1 ? sse / (n - 1) : 0;
+  const sd = Math.sqrt(variance);
+  const stderr = n > 0 ? sd / Math.sqrt(n) : 0;
+  let losses = 0;
+  for (let i = 0; i < n; i++) if ((samples[i] as number) < 0) losses++;
+  return {
+    mean,
+    sd,
+    stderr,
+    ci95: 1.96 * stderr,
+    var95: n > 0 ? valueAtRisk(samples, 0.95) : NaN,
+    var99: n > 0 ? valueAtRisk(samples, 0.99) : NaN,
+    cvar95: n > 0 ? conditionalVaR(samples, 0.95) : NaN,
+    cvar99: n > 0 ? conditionalVaR(samples, 0.99) : NaN,
+    probLoss: n > 0 ? losses / n : 0,
+    sharpe: sd > 0 ? mean / sd : null,
+  };
+}
+
 /** §3a NAV shortfall against the deterministic decay schedule:
  *   shortfall_t = max(0, N · P · (1 − k/N_steps) · (S_0 − S_k)).
  *

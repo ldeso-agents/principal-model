@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { samplePath } from "../src/gbm.ts";
-import { expectedIt, varianceIt } from "../src/moments.ts";
-import { mulberry32 } from "../src/rng.ts";
-import { summarize } from "../src/risk.ts";
+import { samplePath } from "../src/core/gbm.js";
+import { expectedIt, varianceIt } from "../src/core/moments.js";
+import { mulberry32 } from "../src/core/rng.js";
+import { summarize } from "../src/core/risk.js";
 
 describe("samplePath with Merton jump-diffusion", () => {
   it("λ_J = 0 reproduces the pure-GBM path bit-for-bit", () => {

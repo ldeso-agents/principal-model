@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { closedForm, simulate } from "../src/models.ts";
-import { defaultParams, withOverrides } from "../src/params.ts";
-import { summarize } from "../src/risk.ts";
+import { closedForm, simulate } from "../src/core/models.js";
+import { defaultParams, withOverrides } from "../src/params.js";
+import { summarize } from "../src/core/risk.js";
 
 describe("closed-form ↔ Monte Carlo cross-check", () => {
   // gbmMoments is pure-GBM; zero the Merton slice so closed-form variance
