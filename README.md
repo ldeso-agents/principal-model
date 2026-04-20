@@ -5,9 +5,9 @@ note *Klima Protocol — Fee-Based vs. Principal Model*
 ([`research-note.md`](research-note.md)).
 
 The report has four pages: **Summary** (index.qmd, findings +
-drawable stress-test tool), **Model** (phase-a.qmd, the research
-note), **Validation** (phase-b.qmd, closed-form vs. Monte Carlo
-cross-check), and **Simulator** (phase-c.qmd, live in-browser Monte
+drawable stress-test tool), **Model** (model.qmd, the research
+note), **Validation** (validation.qmd, closed-form vs. Monte Carlo
+cross-check), and **Simulator** (simulator.qmd, live in-browser Monte
 Carlo). Every slider on the Simulator re-runs a fresh pass on the
 parameters of your choosing (starting token price, starting carbon
 price per tonne, drift and variance, optional Merton jump overlay,
@@ -68,10 +68,10 @@ Artifacts are written to `report/data/`:
 # Validation page — pre-computed JSON, requires a simulate+sweep pass first.
 npm run simulate -- --seed 42
 npm run sweep    -- --seed 42
-quarto preview report/phase-b.qmd
+quarto preview report/validation.qmd
 
 # Simulator page — live in-browser Monte Carlo, no JSON pre-pass needed.
-quarto preview report/phase-c.qmd
+quarto preview report/simulator.qmd
 ```
 
 ## Layout
@@ -90,9 +90,9 @@ src/
 test/                        vitest unit + cross-check suite (43 tests)
 report/
   index.qmd                  Summary — findings + drawable stress-test tool
-  phase-a.qmd                Model — includes research-note.md
-  phase-b.qmd                Validation — closed-form vs. Monte Carlo cross-check
-  phase-c.qmd                Simulator — live in-browser Monte Carlo
+  model.qmd                  Model — includes research-note.md
+  validation.qmd             Validation — closed-form vs. Monte Carlo cross-check
+  simulator.qmd              Simulator — live in-browser Monte Carlo
   _glossary.qmd              shared glossary sidebar (included by every page)
   data/                      emitted JSON artifacts
 ```

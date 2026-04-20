@@ -79,7 +79,7 @@ design decision.
 
 ## Three findings
 
-The [Model](phase-a.qmd) page derives each claim in full; what follows
+The [Model](model.qmd) page derives each claim in full; what follows
 is the shape-of-the-answer.
 
 ### The fee and back-to-back books share a kernel but not a sign
@@ -139,7 +139,7 @@ on top, seeded by the PRNG slider for reproducibility. $I_T$, the
 coverage-uncovered tail integral, and the switching split $I_\tau,
 J_\tau$ are taken by trapezoid rule over the realised path, and
 $S_T$ is the last sample — the same quantities every book on the
-[Simulator](phase-c.qmd) consumes. Leave noise at zero to read
+[Simulator](simulator.qmd) consumes. Leave noise at zero to read
 deterministic P&L off the curve; raise it to see how robust a
 narrative is to typical day-to-day jitter.
 :::
@@ -197,7 +197,7 @@ buildDate = {
 
 Inventory, contract, and horizon. The comparison Monte Carlo runs at
 fixed drift and variance ($\mu = 0.05$, $\sigma^2 = 0.25$, no jumps);
-vary those on the [Simulator](phase-c.qmd).
+vary those on the [Simulator](simulator.qmd).
 
 ### Price process
 
@@ -882,7 +882,7 @@ number. The switching row appears only when the barrier $h$ is below 3.
 
 ```{ojs}
 //| echo: false
-html`<div class="phase-c-derived">
+html`<div class="derived-stats">
   <div class="card"><div class="label">min / max drawn S</div><div class="value">${"$" + customScenario.minS.toFixed(4)} / ${"$" + customScenario.maxS.toFixed(4)}</div></div>
   <div class="card"><div class="label">mean drawn S (I_T / T)</div><div class="value">${"$" + customScenario.meanS.toFixed(4)}</div></div>
   <div class="card"><div class="label">terminal S_T</div><div class="value">${"$" + customScenario.ST.toFixed(4)}</div></div>
@@ -897,7 +897,7 @@ customRows = [
   { book: "principal (custom)",               pnl: customScenario.cust,        mcMean: run.principal.mean, diff: customScenario.cust        - run.principal.mean },
   { book: "principal (retained, syndicated)", pnl: customScenario.retainedDet, mcMean: run.retained.mean,  diff: customScenario.retainedDet - run.retained.mean },
   { book: "principal (back-to-back)",         pnl: customScenario.b2b,         mcMean: run.b2b.mean,       diff: customScenario.b2b         - run.b2b.mean },
-  // Switching row only when the barrier is active, matching phase-c.qmd:424.
+  // Switching row only when the barrier is active, matching simulator.qmd:424.
   ...(isFinite(barrierRatio) && barrierRatio < 3
     ? [{ book: `principal (switching, h=${barrierRatio.toFixed(2)})`,
          pnl: customScenario.switchingDet, mcMean: switchRun.summary.mean,
@@ -945,5 +945,5 @@ crosses $H = h \cdot S_0$ before $T$ and is hidden above $h = 3$.
 GBM baseline with an optional compensated Merton jump overlay;
 retirement demand deterministic. Gas, on-chain slippage, discounting,
 and credit sit outside the model — the [Model page's limitations
-table](phase-a.qmd#limitations-and-next-steps) is authoritative.
+table](model.qmd#limitations-and-next-steps) is authoritative.
 Outputs are illustrative, not forecasts.

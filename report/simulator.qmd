@@ -9,7 +9,7 @@ subtitle: "Live in-browser Monte Carlo on parameters of your choosing"
 <details open>
 <summary>Simulator notation</summary>
 <p>Symbols introduced on the
-<a href="phase-a.qmd#setup-and-notation">Model page</a>. The Simulator
+<a href="model.qmd#setup-and-notation">Model page</a>. The Simulator
 admits raw inventory state instead of a scalar coverage:</p>
 <dl>
   <dt><code>k</code>, <code>C<sub>basis</sub></code></dt>
@@ -40,7 +40,7 @@ admits raw inventory state instead of a scalar coverage:</p>
 :::
 
 Every slider on this page kicks off a fresh Monte Carlo in your
-browser; the [Model](phase-a.qmd) page defines the symbols. Two
+browser; the [Model](model.qmd) page defines the symbols. Two
 things are slightly different here. First, the hedge is specified in
 raw inventory state $(k, C_{\mathrm{basis}})$ — kVCM tokens on hand
 plus their sunk USD cost — so a position already accumulated at a
@@ -250,7 +250,7 @@ derived = {
 
 ```{ojs}
 //| echo: false
-html`<div class="phase-c-derived">
+html`<div class="derived-stats">
   <div class="card"><div class="label">σ (volatility)</div><div class="value">${derived.sigma.toFixed(4)}</div></div>
   <div class="card"><div class="label">S₀ = π₀ / P (USD / kVCM)</div><div class="value">${"$" + derived.S0.toFixed(4)}</div></div>
   <div class="card"><div class="label">T (years)</div><div class="value">${derived.T.toFixed(3)}</div></div>
@@ -281,7 +281,7 @@ A run card (paths, wall time, coverage, leftover tokens), a summary
 table, histograms, and sample price paths follow. Wall time stays
 sub-second at 5,000–10,000 paths; at 40,000 the bottleneck is
 re-plotting, not the simulation itself. The [Merton compensation
-identity](phase-a.qmd#compensated-merton-jump-diffusion) tells you
+identity](model.qmd#compensated-merton-jump-diffusion) tells you
 what to expect when sweeping the jump sliders: the black mean rule
 on each histogram holds position (means survive) while SD, VaR, and
 CVaR widen as the jumps land.
@@ -349,7 +349,7 @@ switchRun = {
 
 ```{ojs}
 //| echo: false
-html`<div class="phase-c-derived">
+html`<div class="derived-stats">
   <div class="card"><div class="label">paths simulated</div><div class="value">${nPaths.toLocaleString()}</div></div>
   <div class="card"><div class="label">wall time</div><div class="value">${run.elapsedMs.toFixed(1)} ms</div></div>
   <div class="card"><div class="label">coverage this run</div><div class="value">${(run.tauFrac * 100).toFixed(1)}%</div></div>
@@ -364,7 +364,7 @@ html`<div class="phase-c-derived">
 ```{ojs}
 //| echo: false
 html`${(isFinite(barrierRatio) && barrierRatio < 3)
-  ? `<div class="phase-c-derived">
+  ? `<div class="derived-stats">
     <div class="card"><div class="label">switching barrier h</div><div class="value">${barrierRatio.toFixed(2)} (H = $${(barrierRatio * derived.S0).toFixed(4)})</div></div>
     <div class="card"><div class="label">f_post</div><div class="value">${(feePost ?? fee).toFixed(3)}${feePost === null ? " (locked to f)" : ""}</div></div>
     <div class="card"><div class="label">P[τ &lt; T]</div><div class="value">${(switchRun.probSwitch * 100).toFixed(1)}%</div></div>
@@ -372,14 +372,14 @@ html`${(isFinite(barrierRatio) && barrierRatio < 3)
     <div class="card"><div class="label">switching E[Π]</div><div class="value">${(switchRun.summary.mean >= 0 ? "$" : "−$") + Math.abs(switchRun.summary.mean).toLocaleString(undefined, {maximumFractionDigits: 0})}</div></div>
     <div class="card"><div class="label">switching CVaR₉₅</div><div class="value">${(switchRun.summary.cvar95 >= 0 ? "$" : "−$") + Math.abs(switchRun.summary.cvar95).toLocaleString(undefined, {maximumFractionDigits: 0})}</div></div>
   </div>`
-  : `<div class="phase-c-derived"><div class="card"><div class="label">switching</div><div class="value">disabled (h ≈ ∞) — set the slider below 3 to activate</div></div></div>`
+  : `<div class="derived-stats"><div class="card"><div class="label">switching</div><div class="value">disabled (h ≈ ∞) — set the slider below 3 to activate</div></div></div>`
 }`
 ```
 
 ### Summary statistics
 
 One row per book. Three of them — fee, retained (syndicated), and
-back-to-back — match the [Model](phase-a.qmd) page's formulae
+back-to-back — match the [Model](model.qmd) page's formulae
 directly. The fourth, `principal (custom)`, is the Simulator's own
 book: it admits the raw inventory state $(k, C_{\mathrm{basis}})$
 rather than a scalar $\alpha$, so its P&L is $\Pi_{\mathrm{cust}} = Q

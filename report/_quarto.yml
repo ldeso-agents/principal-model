@@ -13,16 +13,16 @@ website:
     left:
       - href: index.qmd
         text: Summary
-      - href: phase-a.qmd
+      - href: model.qmd
         text: Model
-      - href: phase-b.qmd
+      - href: validation.qmd
         text: Validation
-      - href: phase-c.qmd
+      - href: simulator.qmd
         text: Simulator
 
 format:
   html:
     theme: cosmo
-    css: lib/phase-styles.css
+    css: lib/report-styles.css
     embed-resources: false
     toc: false
