@@ -66,21 +66,29 @@ fair premium (counterparty risk load $\theta = 0$) cession preserves
 expected P&L. Risk managers should track coverage and cession
 separately from the unrealised P&L on held tokens.
 
-### A barrier truncates the tail rather than rescaling it
+### A threshold truncates the tail rather than rescaling it
 
 Pre-buying and syndication multiply the loss tail by a constant.
-Switching pricing to the fee book when the token crosses the upper
-barrier $H = h \cdot S_0$ (with barrier multiple $h \ge 1$) caps every
-post-barrier retirement at non-negative fee revenue, so the tail is
-bounded rather than scaled. Under the default calibration, $h = 1.25$
-collapses $\mathrm{CVaR}_{95}$ — the mean loss in the worst 5 % of
-paths — from ≈ \$3,900 to ≈ \$49 ($\approx 80\times$) while *raising*
-expected P&L. The three levers — capital (via the treasury),
-counterparty credit ($\beta$), market timing ($h$) — compose
-multiplicatively and consume distinct resources; together they close
-the asymmetry the first finding identifies. Every symbol above is
-defined in the [Model page's setup and notation
-section](model.qmd#setup-and-notation).
+Switching pricing to the fee book whenever the token sits above an
+upper threshold $H = h \cdot S_0$ (with threshold multiple $h \ge 1$)
+caps every retirement done in fee mode at non-negative revenue, so
+the tail is bounded rather than scaled. The switch runs in one of
+two modes. **Two-way** (the default) tracks the spot across $H$
+symmetrically — fee mode whenever $S_t \ge H$, b2b mode whenever
+it falls back below — so a price rally followed by a retrace
+returns the book to b2b exposure. **One-way** latches fee mode on
+the first upward crossing and holds it for the remainder of $[0,
+T]$, truncating more aggressively at the cost of ignoring
+subsequent price action. Under the default calibration and one-way,
+$h = 1.25$ collapses $\mathrm{CVaR}_{95}$ — the mean loss in the
+worst 5 % of paths — from ≈ \$3,900 to ≈ \$49 ($\approx 80\times$)
+while *raising* expected P&L; two-way gives back some of that cap
+in exchange for regime fidelity. The three levers — capital (via
+the treasury), counterparty credit ($\beta$), market timing ($h$
+and the mode) — compose multiplicatively and consume distinct
+resources; together they close the asymmetry the first finding
+identifies. Every symbol above is defined in the [Model page's
+setup and notation section](model.qmd#setup-and-notation).
 
 ---
 
@@ -105,11 +113,13 @@ robustness dial distinct from the GBM volatility $\sigma$ that drives
 the comparison Monte Carlo); $\sigma^2_{\mathrm{noise}} > 0$ activates
 the overlay, seeded by the PRNG slider for reproducibility. From the
 realised path we compute $I_T$, the coverage-uncovered tail integral
-$J_\alpha = \int_{\alpha T}^T S_t \, dt$, the switching split $I_\tau
-= \int_0^\tau S_t \, dt$ and $J_\tau = \int_\tau^T S_t \, dt$ — where
-$\tau$ is the first time the realised path crosses $H = h \cdot S_0$,
-or $T$ if it never does — all by trapezoid rule, and $S_T$ as the
-last sample. These are the same quantities every book on the
+$J_\alpha = \int_{\alpha T}^T S_t \, dt$, and the switching split
+$I_{\mathrm{b2b}} = \int_0^T \mathbf{1}\{\text{mode} = \text{b2b}\} \,
+S_t \, dt$ and $I_{\mathrm{fee}} = I_T - I_{\mathrm{b2b}}$ — all by
+trapezoid rule — plus $S_T$ as the last sample. Under **two-way**
+the mode indicator is $\mathbf{1}\{S_t \ge H\}$ (symmetric flip at
+$H = h \cdot S_0$); under **one-way** it latches at the first
+upward crossing. These are the same quantities every book on the
 [Simulator](simulator.qmd) consumes. Leave noise at zero to read
 deterministic P&L off the curve; raise it to see how robust a
 narrative is to typical day-to-day jitter.
@@ -277,7 +287,20 @@ viewof premiumMode = Inputs.radio(["sharpe", "cvar"], { value: "sharpe", label: 
 
 ```{ojs}
 //| echo: false
-viewof barrierRatio = Inputs.range([1, 3], { step: 0.01, value: 3, label: "switching barrier h = H/S₀ (3 ≈ no switch)" })
+viewof switchMode = Inputs.radio(["off", "two-way", "one-way"], { value: "off", label: "mode" })
+```
+
+```{ojs}
+//| echo: false
+viewof barrierRatioSlider = Inputs.range([1, 3], { step: 0.01, value: 1.25, label: "threshold h = H/S₀" })
+```
+
+```{ojs}
+//| echo: false
+// "off" disables switching by driving the effective threshold to Infinity,
+// regardless of the slider value. Two-way tracks S_t ≥ H symmetrically;
+// one-way latches fee mode on the first upward crossing.
+barrierRatio = switchMode === "off" ? Infinity : barrierRatioSlider
 ```
 
 ```{ojs}
@@ -330,7 +353,8 @@ findingsResetButton = {
     lambdaDay: 1, kPre: 300000, cBasis: 21000,
     Tdays: defaultTdays, Q: 180, fee: 0.4,
     beta: 0, theta: 0, premiumMode: "sharpe",
-    barrierRatio: 3, feePostLocked: true, feePostSlider: 0.4,
+    switchMode: "off", barrierRatioSlider: 1.25,
+    feePostLocked: true, feePostSlider: 0.4,
     curveYMax: 0.2, curveVar: 0, seed: 42,
   };
   const views = {
@@ -340,8 +364,8 @@ findingsResetButton = {
     lambdaDay: viewof lambdaDay, kPre: viewof kPre, cBasis: viewof cBasis,
     Tdays: viewof Tdays, Q: viewof Q, fee: viewof fee,
     beta: viewof beta, theta: viewof theta, premiumMode: viewof premiumMode,
-    barrierRatio: viewof barrierRatio, feePostLocked: viewof feePostLocked,
-    feePostSlider: viewof feePostSlider,
+    switchMode: viewof switchMode, barrierRatioSlider: viewof barrierRatioSlider,
+    feePostLocked: viewof feePostLocked, feePostSlider: viewof feePostSlider,
     curveYMax: viewof curveYMax, curveVar: viewof curveVar, seed: viewof seed,
   };
   const wrap = document.createElement("div");
@@ -421,11 +445,13 @@ run = {
 // coincide bit-for-bit. The switching book is a pure operating book —
 // matched-desk composition (switching + treasury) is deferred to Validation.
 switchRun = {
+  const effectiveMode = switchMode === "off" ? "two-way" : switchMode;
   const inputs = {
     S0: derived.S0, mu, sigma: derived.sigma, P,
     lambda: derived.lambda, T: derived.T,
     Q, fee,
     barrierRatio, feePost,
+    switchMode: effectiveMode,
     lambdaJ, muJ, sigmaJ,
     nPaths: 5000, nSteps: 100, seed,
   };
@@ -903,30 +929,37 @@ customScenario = {
   // from the MC run (run.premium) — derived from the run's b2b sample moments.
   const retainedOp = (1 - beta) * b2bOp + run.premium;
 
-  // Switching — walk the realised path, bucket trapezoid pieces into I_τ / J_τ.
-  // Barrier convention matches src/core/simulate-switching.ts: the step that
-  // completes the crossing belongs to I_τ, τ = k·dt; h ≤ 1 fires at t=0.
+  // Switching — walk the realised path, bucket trapezoid pieces into
+  // I_b2b / I_fee per the active mode. Convention matches
+  // src/core/simulate-switching.ts: the piece is bucketed by the mode at
+  // step entry (S_{k-1} vs H), so a step that crosses upward contributes
+  // its piece to b2b and the latch/state flip happens at step exit.
+  // h ≤ 1 starts above the threshold ⇒ fee mode from t = 0.
   const H = barrierRatio * derived.S0;
-  let switched = barrierRatio <= 1;
-  let tauTime = switched ? 0 : T;
-  let crossed = switched;
-  let ITau = 0;
-  let JTau = 0;
+  const oneWay = switchMode === "one-way";
+  let everCrossed = realised[0] >= H;
+  let crossed = everCrossed;
+  let firstCrossTime = everCrossed ? 0 : T;
+  let Ib2b = 0;
+  let Ifee = 0;
+  let tB2b = 0;
+  let tFee = 0;
   for (let k = 1; k < nPoints; k++) {
-    const piece = 0.5 * (realised[k - 1] + realised[k]) * dt;
-    if (!switched && realised[k] >= H) {
-      tauTime = k * dt;
-      switched = true;
+    const sprev = realised[k - 1];
+    const piece = 0.5 * (sprev + realised[k]) * dt;
+    const prevAbove = sprev >= H;
+    const entryIsFee = oneWay ? everCrossed : prevAbove;
+    if (entryIsFee) { Ifee += piece; tFee += dt; }
+    else            { Ib2b += piece; tB2b += dt; }
+    const currAbove = realised[k] >= H;
+    if (currAbove && !everCrossed) {
+      firstCrossTime = k * dt;
+      everCrossed = true;
       crossed = true;
-      ITau += piece;
-    } else if (!switched) {
-      ITau += piece;
-    } else {
-      JTau += piece;
     }
   }
   const fPost = feePost ?? fee;
-  const switchingOp = Q * lam * tauTime - P * lam * ITau + fPost * P * lam * JTau;
+  const switchingOp = Q * lam * tB2b - P * lam * Ib2b + fPost * P * lam * Ifee;
 
   let maxS = -Infinity, minS = Infinity;
   for (let k = 0; k < nPoints; k++) {
@@ -938,7 +971,7 @@ customScenario = {
   return {
     base, realised, nPoints, IT, tailInt, ST, tauFrac, tokensLeftover,
     feeRev, b2bOp, treasury, customDesk, retainedOp, switchingOp,
-    crossed, tauTime,
+    crossed, firstCrossTime, tB2b, tFee, Ib2b, Ifee,
     maxS, minS, meanS,
   };
 }
@@ -1036,6 +1069,10 @@ Plot.plot({
       : []),
     Plot.ruleX([run.tauFrac * Tdays],
       { stroke: "#2a7", strokeDasharray: "4 3", strokeWidth: 2 }),
+    ...(switchMode !== "off"
+      ? [Plot.ruleY([barrierRatio * derived.S0 * P],
+          { stroke: "#a36", strokeDasharray: "6 3", strokeWidth: 2 })]
+      : []),
   ],
 })
 ```
@@ -1043,7 +1080,10 @@ Plot.plot({
 _Orange: drawn base rescaled by $P$. Blue: noise-realised path (when
 $\sigma^2_{\mathrm{noise}} > 0$). Grey: twenty sampled GBM trajectories
 (when $\sigma > 0$ or $\lambda_J > 0$). Green dashed rule:
-inventory-exhaustion time $\alpha T$._
+inventory-exhaustion time $\alpha T$. Maroon dashed rule (when a
+switching mode is selected): threshold in price-per-tonne units,
+$\pi_H = h \cdot S_0 \cdot P$ — the book runs in fee mode whenever
+the realised path is above that line._
 
 ### P&L over time on the drawn path
 
@@ -1073,16 +1113,18 @@ pnlOverTime = {
   const tailStartIdx = tailStartRaw >= nPoints - 1 ? nPoints : tailStartRaw;
 
   const H = barrierRatio * derived.S0;
-  const includeSwitch = isFinite(barrierRatio) && barrierRatio < 3;
-  const switchLabel = `switching (h=${barrierRatio.toFixed(2)})`;
+  const includeSwitch = switchMode !== "off";
+  const switchLabel = `switching (${switchMode}, h=${barrierRatio.toFixed(2)})`;
   const fPost = feePost ?? fee;
+  const oneWay = switchMode === "one-way";
 
   // Cumulative state updated in lockstep with k.
   let I = 0;
-  let ITau = 0;
-  let JTau = 0;
-  let switched = barrierRatio <= 1;
-  let tauTime = switched ? 0 : T;
+  let Ib2b = 0;
+  let Ifee = 0;
+  let tB2b = 0;
+  let tFee = 0;
+  let everCrossed = realised[0] >= H;
 
   // Treasury opens at MTM at t = 0; operating books all start at 0.
   const treasuryOpen = kPre * derived.S0 - cBasis;
@@ -1090,17 +1132,14 @@ pnlOverTime = {
   const rows = [];
   for (let k = 0; k < nPoints; k++) {
     if (k > 0) {
-      const piece = 0.5 * (realised[k - 1] + realised[k]) * dt;
+      const sprev = realised[k - 1];
+      const piece = 0.5 * (sprev + realised[k]) * dt;
       I += piece;
-      if (!switched && realised[k] >= H) {
-        tauTime = k * dt;
-        switched = true;
-        ITau += piece;
-      } else if (!switched) {
-        ITau += piece;
-      } else {
-        JTau += piece;
-      }
+      const prevAbove = sprev >= H;
+      const entryIsFee = oneWay ? everCrossed : prevAbove;
+      if (entryIsFee) { Ifee += piece; tFee += dt; }
+      else            { Ib2b += piece; tB2b += dt; }
+      if (realised[k] >= H) everCrossed = true;
     }
 
     // Edge-weighted tail integral on [tailStartIdx, k]. Zero-width
@@ -1131,9 +1170,7 @@ pnlOverTime = {
     rows.push({ tDays, book: "treasury", pnl: treasuryPnl });
     rows.push({ tDays, book: "custom desk = b2b + treasury", pnl: customDeskPnl });
     if (includeSwitch) {
-      const switchPnl = switched
-        ? Q * lam * tauTime - P * lam * ITau + fPost * P * lam * JTau
-        : Q * lam * tK - P * lam * I;
+      const switchPnl = Q * lam * tB2b - P * lam * Ib2b + fPost * P * lam * Ifee;
       rows.push({ tDays, book: switchLabel, pnl: switchPnl });
     }
   }
@@ -1183,7 +1220,10 @@ _Each line traces one book's deterministic cumulative P&L along the drawn
 (or noise-realised) path. Operating books start at 0; the treasury opens at
 its MTM $k \cdot S_0 - C_{\mathrm{basis}}$. Green dashed rule:
 inventory-exhaustion time $\alpha T$. The switching series appears only
-when the barrier $h < 3$._
+when a switching mode is selected; its slope alternates between the b2b and
+fee regimes whenever the drawn path crosses $H = h \cdot S_0$ under
+two-way, and flips exactly once (at the first upward crossing) under
+one-way._
 
 ### Deterministic P&L on the drawn path
 
@@ -1191,7 +1231,8 @@ The cards below report one-point statistics of the realised curve
 (min/max, its mean $I_T / T$, terminal $S_T$, the coverage-uncovered
 tail integral). The table then gives each book's P&L on that curve
 next to its MC mean; the diff column is the headline stress-test
-number. The switching row appears only when the barrier $h$ is below 3.
+number. The switching row appears only when a switching mode is
+selected — row label carries the mode.
 
 ```{ojs}
 //| echo: false
@@ -1211,11 +1252,14 @@ customRows = [
   { book: "retained (syndicated-on-b2b)", pnl: customScenario.retainedOp, mcMean: run.retained.mean,   diff: customScenario.retainedOp - run.retained.mean },
   { book: "treasury",                     pnl: customScenario.treasury,   mcMean: run.treasury.mean,   diff: customScenario.treasury   - run.treasury.mean },
   { book: "custom desk = b2b + treasury", pnl: customScenario.customDesk, mcMean: run.customDesk.mean, diff: customScenario.customDesk - run.customDesk.mean },
-  // Switching row only when the barrier is active, matching simulator.qmd.
-  ...(isFinite(barrierRatio) && barrierRatio < 3
-    ? [{ book: `switching (h=${barrierRatio.toFixed(2)})`,
-         pnl: customScenario.switchingOp, mcMean: switchRun.summary.mean,
-         diff: customScenario.switchingOp - switchRun.summary.mean }]
+  // Switching row only when a mode is selected, matching simulator.qmd.
+  ...(switchMode !== "off"
+    ? [{
+        book: `switching (${switchMode}, h=${barrierRatio.toFixed(2)})`,
+        pnl: customScenario.switchingOp,
+        mcMean: switchRun.summary.mean,
+        diff: customScenario.switchingOp - switchRun.summary.mean,
+      }]
     : []),
 ]
 ```
@@ -1253,7 +1297,11 @@ collapses to the deterministic matched total and is insensitive to
 the curve by construction. The retained row applies the $(1 - \beta)$
 cession dial to the b2b operating book and adds the MC-priced
 premium; the switching row is only meaningful when the drawn path
-crosses $H = h \cdot S_0$ before $T$ and is hidden above $h = 3$.
+crosses $H = h \cdot S_0$ and is hidden when the mode is off. Switch
+the mode to **two-way** and draw a path that rallies above $H$ then
+retraces — the switching P&L now reflects both regimes in turn.
+Switch to **one-way** to freeze the regime at the first upward
+crossing.
 
 ## Scope
 

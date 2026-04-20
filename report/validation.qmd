@@ -89,12 +89,14 @@ html`<div class="metric-grid">
 ### Scorecard: closed form vs Monte Carlo
 
 One row per operating book — fee, b2b, retained (syndicated-on-b2b),
-switching when a barrier is active — plus the treasury. Left block:
-closed-form moments versus their MC estimates, with the $z$ column
-checking their agreement. Right block: tail metrics that have no
-closed form. The switching row prints `NaN` in the closed-form
-columns (no closed-form moments) but its MC tails are directly
-comparable.
+switching when a threshold is active — plus the treasury. Left
+block: closed-form moments versus their MC estimates, with the $z$
+column checking their agreement. Right block: tail metrics that have
+no closed form. The switching row prints `NaN` in the scorecard's
+closed-form moment columns (no closed-form P&L density), but its
+mode-level anchors $\mathbb{P}[\tau \le T]$, $\mathbb{E}[T_{\mathrm{fee}}]$,
+and (under two-way) $\mathbb{E}[I_{\mathrm{fee}}]$ are tracked in
+dedicated panels below.
 
 <div class="legend-table">
 
@@ -730,17 +732,26 @@ Plot.plot({
 
 ## Switching and tail truncation
 
-The switching operating book flips the b2b pricing to a fee book at
-rate $f_{\mathrm{post}}$ the first time $S_t$ crosses $H = h \cdot
-S_0$ (stopping time $\tau$). See [the switching book in the
-model](model.qmd#switching-book) for the formulae. No closed-form
-density exists — $\tau$ is a stopping time — so Monte Carlo is
-authoritative: on the scorecard the switching row prints closed-form
-columns as `NaN` and is compared directly against the b2b anchor on
-the tail metrics. Under pure GBM the Harrison (1985) first-passage
-distribution gives $\mathbb{P}[\tau \le T]$ and
-$\mathbb{E}[\tau \wedge T]$ as test oracles; Merton jumps inflate
-$\mathbb{P}[\tau \le T]$ and shorten $\mathbb{E}[\tau \wedge T]$.
+The switching operating book earns the fee-book payoff whenever
+$S_t \ge H = h \cdot S_0$ and the b2b payoff whenever $S_t < H$. Two
+variants: **two-way** (the default) tracks the indicator
+symmetrically, flipping back to b2b if the spot falls back below
+$H$; **one-way** latches fee mode on the first upward crossing and
+holds it for the remainder of $[0, T]$. See [the switching book in
+the model](model.qmd#switching-book) for the formulae.
+
+No closed-form P&L density exists for either variant — the joint
+distribution of $(T_{\mathrm{fee}}, I_{\mathrm{fee}}, I_{\mathrm{b2b}})$
+is the same non-trivial object in both cases — so Monte Carlo is
+authoritative on the mean, variance, and tails. Three **mode-level**
+anchors under pure GBM are tracked here as z-test oracles:
+$\mathbb{P}[\tau \le T]$ (Harrison 1985; shared between modes),
+$\mathbb{E}[T_{\mathrm{fee}}] = \int_0^T \Phi((\nu t - \log h) /
+(\sigma \sqrt{t})) \, dt$, and (two-way only)
+$\mathbb{E}[I_{\mathrm{fee}}] = S_0 \int_0^T e^{\mu t} \Phi((\mu t +
+\tfrac12 \sigma^2 t - \log h)/(\sigma \sqrt{t})) \, dt$. Merton jumps
+inflate $\mathbb{P}[\tau \le T]$ and change $\mathbb{E}[T_{\mathrm{fee}}]$;
+under jumps the anchors drop to MC-only.
 
 ```{ojs}
 //| echo: false
@@ -752,27 +763,45 @@ switchingSweep = FileAttachment("data/switching-sweep.json").json()
 switchingRows = switchingSweep.cells.map(c => ({
   h: c.h === null ? Infinity : c.h,
   hLabel: c.h === null ? "∞ (no switch)" : c.h.toFixed(2),
+  switchMode: c.switchMode,
   mean: c.row.mean,
   cvar95: c.row.cvar95,
   cvar99: c.row.cvar99,
   probLoss: c.row.probLoss,
-  probSwitch: c.switching ? c.switching.probSwitch.mc : 0,
-  expectedTau: c.switching ? c.switching.expectedTau.mc : switchingSweep.base.T,
+  probSwitchMc: c.switching ? c.switching.probSwitch.mc : 0,
+  probSwitchCf: c.switching?.probSwitch?.closedForm ?? null,
+  meanTimeInFeeMc: c.switching ? c.switching.meanTimeInFee.mc : 0,
+  meanTimeInFeeCf: c.switching?.meanTimeInFee?.closedForm ?? null,
+  meanTimeInFeeZ: c.switching?.meanTimeInFee?.zScore ?? null,
+  meanIntegralFeeMc: c.switching ? c.switching.meanIntegralFee.mc : 0,
+  meanIntegralFeeCf: c.switching?.meanIntegralFee?.closedForm ?? null,
+  meanIntegralFeeZ: c.switching?.meanIntegralFee?.zScore ?? null,
+  meanNCrossings: c.switching?.meanNCrossings ?? 0,
   meanFracInFeeMode: c.switching ? c.switching.meanFracInFeeMode : 0,
   retainedMean: c.retained.mean,
   retainedCvar95: c.retained.cvar95,
   feeMean: c.fee.mean,
-  feeCvar95: c.fee.cvar95
+  feeCvar95: c.fee.cvar95,
 }))
 ```
 
-### CVaR₉₅ and $\mathbb{E}[\Pi]$ as functions of the barrier
+### CVaR₉₅ and $\mathbb{E}[\Pi]$ as functions of the threshold
 
-Lowering $h$ collapses CVaR₉₅ from the b2b reference (dashed
-horizontal) toward the fee book's lightly negative CVaR and
-simultaneously lifts $\mathbb{E}[\Pi]$ as losses are converted to fee
-revenue. The knee where both curves diverge from the no-switch
-baseline is the operator's natural decision point.
+Two curves per panel, one per mode. Lowering $h$ collapses CVaR₉₅
+from the b2b reference (dashed horizontal) toward the fee book's
+lightly negative CVaR and simultaneously lifts $\mathbb{E}[\Pi]$ as
+losses are converted to fee revenue. The **one-way** curve (teal)
+truncates more aggressively — once entered, fee mode stays entered —
+while the **two-way** curve (maroon) sits on the conservative side:
+re-entry into b2b mode gives back some of the tail cap but tracks
+the regime more faithfully. The knee where either curve diverges
+from the no-switch baseline is the operator's natural decision
+point.
+
+```{ojs}
+//| echo: false
+MODE_COLOURS = ({ "one-way": "#2a8b82", "two-way": "#a33b5b" })
+```
 
 ```{ojs}
 //| echo: false
@@ -783,13 +812,14 @@ Plot.plot({
   marginRight: 60,
   marginBottom: 55,
   grid: true,
-  caption: "Switching book — CVaR₉₅ (USD loss, lower is better) as a function of barrier h. Finite h on a log scale; the dashed horizontal is the retained-on-b2b anchor. Lower h truncates more of the loss tail but also caps more of the upside.",
-  x: { label: "barrier h = H/S₀   (log)", labelAnchor: "center", labelOffset: 36, type: "log", domain: [1, 3] },
+  caption: "Switching book — CVaR₉₅ (USD loss, lower is better) as a function of threshold h. Finite h on a log scale; the dashed horizontal is the retained-on-b2b anchor. Two curves (one-way vs two-way) show how mode choice reshapes the tail cap.",
+  x: { label: "threshold h = H/S₀   (log)", labelAnchor: "center", labelOffset: 36, type: "log", domain: [1, 3] },
   y: { label: "CVaR95 of switching book   (USD)", labelAnchor: "center", tickFormat: formatTickCurrency },
+  color: { legend: true, domain: ["one-way", "two-way"], range: [MODE_COLOURS["one-way"], MODE_COLOURS["two-way"]], label: "mode" },
   marks: [
     Plot.ruleY([0]),
-    Plot.line(switchingRows.filter(r => isFinite(r.h)), { x: "h", y: "cvar95", stroke: "#c33", strokeWidth: 2 }),
-    Plot.dot(switchingRows.filter(r => isFinite(r.h)), { x: "h", y: "cvar95", fill: "#c33", r: 4 }),
+    Plot.line(switchingRows.filter(r => isFinite(r.h)), { x: "h", y: "cvar95", stroke: "switchMode", strokeWidth: 2 }),
+    Plot.dot(switchingRows.filter(r => isFinite(r.h)), { x: "h", y: "cvar95", fill: "switchMode", r: 4 }),
     Plot.ruleY([switchingRows.find(r => !isFinite(r.h))?.retainedCvar95 ?? null], { stroke: "#888", strokeDasharray: "4 4" }),
     Plot.text([{x: 2.6, y: switchingRows.find(r => !isFinite(r.h))?.retainedCvar95 ?? 0, t: "retained (h=∞)"}],
       { x: "x", y: "y", text: "t", fill: "#666", textAnchor: "end", dy: -8 })
@@ -805,13 +835,14 @@ Plot.plot({
   marginLeft: 80,
   marginBottom: 55,
   grid: true,
-  caption: "Expected P&L across barriers. Tighter h shifts the mean upward because the fee book's positive-revenue payoff replaces b2b's mean-zero-but-fat-tailed payoff on switched paths.",
-  x: { label: "barrier h = H/S₀   (log)", labelAnchor: "center", labelOffset: 36, type: "log", domain: [1, 3] },
+  caption: "Expected P&L across thresholds. Tighter h shifts the mean upward because the fee book's positive-revenue payoff replaces b2b's mean-zero-but-fat-tailed payoff on paths that ever enter fee mode.",
+  x: { label: "threshold h = H/S₀   (log)", labelAnchor: "center", labelOffset: 36, type: "log", domain: [1, 3] },
   y: { label: "E[Π] (switching)   (USD)", labelAnchor: "center", tickFormat: formatTickCurrency },
+  color: { legend: true, domain: ["one-way", "two-way"], range: [MODE_COLOURS["one-way"], MODE_COLOURS["two-way"]], label: "mode" },
   marks: [
     Plot.ruleY([0]),
-    Plot.line(switchingRows.filter(r => isFinite(r.h)), { x: "h", y: "mean", stroke: "#2a7", strokeWidth: 2 }),
-    Plot.dot(switchingRows.filter(r => isFinite(r.h)), { x: "h", y: "mean", fill: "#2a7", r: 4 }),
+    Plot.line(switchingRows.filter(r => isFinite(r.h)), { x: "h", y: "mean", stroke: "switchMode", strokeWidth: 2 }),
+    Plot.dot(switchingRows.filter(r => isFinite(r.h)), { x: "h", y: "mean", fill: "switchMode", r: 4 }),
     Plot.ruleY([switchingRows.find(r => !isFinite(r.h))?.retainedMean ?? null], { stroke: "#888", strokeDasharray: "4 4" }),
     Plot.text([{x: 2.6, y: switchingRows.find(r => !isFinite(r.h))?.retainedMean ?? 0, t: "retained (h=∞)"}],
       { x: "x", y: "y", text: "t", fill: "#666", textAnchor: "end", dy: -8 })
@@ -819,33 +850,81 @@ Plot.plot({
 })
 ```
 
-### How often, and how early, the barrier fires
+### Closed-form anchors under pure GBM
 
-Two diagnostics on barrier exercise: empirical switch probability
-$\mathbb{P}[\tau < T]$ and the horizon fraction spent in fee mode
-$\mathbb{E}[(T - \tau) / T]$. Both drop as $h$ rises and both are
-zero at $h = \infty$ by definition.
+For each threshold and mode the simulator's Monte Carlo estimates of
+$\mathbb{E}[T_{\mathrm{fee}}]$ and $\mathbb{E}[I_{\mathrm{fee}}]$ are
+z-tested against the Simpson-quadrature closed forms from
+`src/core/moments.ts`. The $z$ columns follow the same convention as
+the main scorecard ($|z| \le 2$ healthy, $|z| > 3$ points at a
+bug). Under one-way the $\mathbb{E}[I_{\mathrm{fee}}]$ anchor is
+blank — there is no simple closed form for $\mathbb{E}[J_\tau]$
+under the latched indicator.
 
 ```{ojs}
 //| echo: false
 Inputs.table(
-  switchingRows.filter(r => isFinite(r.h) || true),
+  switchingRows.filter(r => isFinite(r.h)),
   {
-    columns: ["hLabel", "probSwitch", "expectedTau", "meanFracInFeeMode", "mean", "cvar95"],
+    columns: ["switchMode", "hLabel", "probSwitchMc", "probSwitchCf",
+              "meanTimeInFeeMc", "meanTimeInFeeCf", "meanTimeInFeeZ",
+              "meanIntegralFeeMc", "meanIntegralFeeCf", "meanIntegralFeeZ",
+              "meanNCrossings"],
     header: {
+      switchMode: "mode",
       hLabel: "h",
-      probSwitch: "P[τ<T]",
-      expectedTau: "E[τ∧T]",
-      meanFracInFeeMode: "E[(T−τ)/T]",
-      mean: "E[Π]",
-      cvar95: "CVaR95"
+      probSwitchMc: "P[ever fee] (mc)",
+      probSwitchCf: "P[ever fee] (cf)",
+      meanTimeInFeeMc: "E[T_fee] (mc)",
+      meanTimeInFeeCf: "E[T_fee] (cf)",
+      meanTimeInFeeZ: "z(T_fee)",
+      meanIntegralFeeMc: "E[I_fee] (mc)",
+      meanIntegralFeeCf: "E[I_fee] (cf)",
+      meanIntegralFeeZ: "z(I_fee)",
+      meanNCrossings: "E[#crossings]",
     },
     format: {
-      probSwitch: x => x.toFixed(3),
-      expectedTau: x => x.toFixed(3),
+      probSwitchMc: x => x.toFixed(3),
+      probSwitchCf: x => x === null ? "—" : x.toFixed(3),
+      meanTimeInFeeMc: x => x.toFixed(4),
+      meanTimeInFeeCf: x => x === null ? "—" : x.toFixed(4),
+      meanTimeInFeeZ: x => x === null ? "—" : (x >= 0 ? "" : "−") + Math.abs(x).toFixed(2),
+      meanIntegralFeeMc: x => x.toFixed(4),
+      meanIntegralFeeCf: x => x === null ? "—" : x.toFixed(4),
+      meanIntegralFeeZ: x => x === null ? "—" : (x >= 0 ? "" : "−") + Math.abs(x).toFixed(2),
+      meanNCrossings: x => x.toFixed(3),
+    }
+  }
+)
+```
+
+### How often, and how much, the book is in fee mode
+
+Mean fraction of the horizon spent above $H$ — drops as $h$ rises
+and zero at $h = \infty$ by definition. Under two-way the "E[#
+crossings]" column counts re-entries into and out of fee mode; under
+one-way it still counts raw spot-level crossings even though the
+book latches on the first.
+
+```{ojs}
+//| echo: false
+Inputs.table(
+  switchingRows.filter(r => isFinite(r.h)),
+  {
+    columns: ["switchMode", "hLabel", "meanFracInFeeMode", "meanNCrossings", "mean", "cvar95"],
+    header: {
+      switchMode: "mode",
+      hLabel: "h",
+      meanFracInFeeMode: "E[T_fee/T]",
+      meanNCrossings: "E[# crossings]",
+      mean: "E[Π]",
+      cvar95: "CVaR95",
+    },
+    format: {
       meanFracInFeeMode: x => x.toFixed(3),
+      meanNCrossings: x => x.toFixed(3),
       mean: x => "$" + x.toFixed(2),
-      cvar95: x => "$" + x.toFixed(2)
+      cvar95: x => "$" + x.toFixed(2),
     }
   }
 )
