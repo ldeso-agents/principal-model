@@ -61,7 +61,7 @@ format:
 ```
 :::
 
-The closed-form identities on the [Model](phase-a.qmd) page are the
+The closed-form identities on the [Model](model.qmd) page are the
 anchors of this page, and the simulator is the instrument. Each
 section below takes one identity — a mean, a variance ratio, a
 scaling law, the Merton compensation — and checks the Monte Carlo
@@ -97,7 +97,7 @@ $(\mu, \sigma, T)$ set the price process, $\lambda$ the throughput,
 $(f, Q, \alpha)$ the business levers. The break-even quote $Q^*$ is
 derived from the others and is the point at which the fee and
 back-to-back means coincide (their distributions still differ — see
-[direct comparison](phase-a.qmd#direct-comparison)).
+[direct comparison](model.qmd#direct-comparison)).
 
 ```{ojs}
 //| echo: false
@@ -178,7 +178,7 @@ Inputs.table(run.rows, {
 
 ### Merton jumps: means invariant, variances inflated
 
-The [compensated Merton overlay](phase-a.qmd#compensated-merton-jump-diffusion)
+The [compensated Merton overlay](model.qmd#compensated-merton-jump-diffusion)
 has two signatures. Means should be identical to pure GBM — the
 compensation $-\lambda_J \kappa$ with $\kappa = e^{\mu_J + \sigma_J^2
 / 2} - 1$ exists precisely to preserve $\mathbb{E}[S_t] = S_0 e^{\mu
@@ -507,7 +507,7 @@ Plot.plot({
 ## Syndicated cession and the $(1-\beta)^2$ law
 
 The three plots in this section exercise the syndicated book. See
-[the syndicated book in the model](phase-a.qmd#syndicated-book) for
+[the syndicated book in the model](model.qmd#syndicated-book) for
 the formulae. The key identity: at the fair premium ($\theta = 0$),
 $\Pi_{\mathrm{ret}} = \mathbb{E}[\Pi_\alpha] + (1 - \alpha)(1 -
 \beta) \cdot (\Pi_{\mathrm{b2b}} - \mathbb{E}[\Pi_{\mathrm{b2b}}])$
@@ -702,7 +702,7 @@ Partial and syndicated **rescale** the loss tail by $(1 - \alpha)(1 -
 \beta)$; the switching book **truncates** it, flipping the stochastic
 leg to a fee book at rate $f_{\mathrm{post}}$ the first time $S_t$
 crosses $H = h S_0$ (stopping time $\tau$). See [the switching book
-in the model](phase-a.qmd#switching-book) for the formulae. No
+in the model](model.qmd#switching-book) for the formulae. No
 closed-form density exists — $\tau$ is a stopping time — so Monte
 Carlo is authoritative. Under pure GBM the Harrison (1985)
 first-passage distribution gives $\mathbb{P}[\tau \le T]$ and

@@ -255,20 +255,20 @@ nav#TOC > ul { font-size: 0.78rem; }
 
 /* --- Summary-card grid (derived-quantity readouts) ---------------------- */
 
-.phase-c-derived {
+.derived-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.75rem;
   margin: 1rem 0;
 }
-.phase-c-derived .card {
+.derived-stats .card {
   border: 1px solid #ddd;
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
   background: #fff;
 }
-.phase-c-derived .card .label { font-size: 0.8rem; color: #555; }
-.phase-c-derived .card .value {
+.derived-stats .card .label { font-size: 0.8rem; color: #555; }
+.derived-stats .card .value {
   font-family: ui-monospace, monospace;
   font-size: 1.1rem;
 }
