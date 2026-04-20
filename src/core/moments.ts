@@ -178,3 +178,93 @@ export function expectedHittingTime(
   }
   return (acc * dt) / 3;
 }
+
+// Two-way switching closed-form anchors. Under pure GBM with X_t = log(S_t/S_0)
+// ~ N(νt, σ²t) (ν := μ − σ²/2),
+//   P[S_t ≥ h·S_0] = Φ((νt − log h) / (σ√t)),
+// and the lognormal partial-expectation identity for X ~ N(m, v²),
+//   E[e^X · 1{X ≥ c}] = e^{m+v²/2} · Φ((m + v² − c)/v),
+// specialised to (m, v²) = (νt, σ²t), c = log h, gives
+//   E[S_t · 1{S_t ≥ h·S_0}]
+//     = S_0 · e^{μt} · Φ((μt + σ²t/2 − log h) / (σ√t)).
+// Integrating both over [0, T] yields the two-way anchors consumed by
+// `report.ts` to z-test the MC E[time in fee mode] and E[I_fee].
+
+// Tail CDF Φ((νt − log h) / (σ√t)): smooth limit at t → 0⁺.
+function probAboveBarrier(
+  mu: number,
+  sigma: number,
+  t: number,
+  h: number,
+): number {
+  if (h <= 0) return 1;
+  const logh = Math.log(h);
+  if (!(t > 0)) return logh > 0 ? 0 : logh < 0 ? 1 : 0.5;
+  if (!(sigma > 0)) {
+    const nu = mu;
+    return nu * t >= logh ? 1 : 0;
+  }
+  const nu = mu - 0.5 * sigma * sigma;
+  return standardNormalCdf((nu * t - logh) / (sigma * Math.sqrt(t)));
+}
+
+// E[time in fee mode] = ∫₀ᵀ P[S_t ≥ h·S_0] dt under pure GBM. Composite Simpson,
+// same pattern as `expectedHittingTime`.
+export function expectedTimeAboveBarrier(
+  mu: number,
+  sigma: number,
+  T: number,
+  h: number,
+  nSubdiv = 200,
+): number {
+  if (!(T > 0)) return 0;
+  if (h <= 0) return T;
+  const n = nSubdiv % 2 === 0 ? nSubdiv : nSubdiv + 1;
+  const dt = T / n;
+  let acc = 0;
+  for (let k = 0; k <= n; k++) {
+    const t = k * dt;
+    const p = probAboveBarrier(mu, sigma, t, h);
+    const w = k === 0 || k === n ? 1 : k % 2 === 0 ? 2 : 4;
+    acc += w * p;
+  }
+  return (acc * dt) / 3;
+}
+
+// E[I_fee] = ∫₀ᵀ E[S_t · 1{S_t ≥ h·S_0}] dt under pure GBM. Composite Simpson.
+// h ≤ 0 reduces to the ordinary E[I_T] (barrier is never hit from above).
+export function expectedIntegralAboveBarrier(
+  S0: number,
+  mu: number,
+  sigma: number,
+  T: number,
+  h: number,
+  nSubdiv = 200,
+): number {
+  if (!(T > 0)) return 0;
+  if (h <= 0) return expectedIt(S0, mu, T);
+  const logh = Math.log(h);
+  const n = nSubdiv % 2 === 0 ? nSubdiv : nSubdiv + 1;
+  const dt = T / n;
+  let acc = 0;
+  for (let k = 0; k <= n; k++) {
+    const t = k * dt;
+    const integrand = (() => {
+      if (!(t > 0)) {
+        // t = 0 limit: S_0 · 1{S_0 ≥ h·S_0} = S_0 · 1{h ≤ 1}; strict inequality
+        // goes to Φ(∓∞) inside the formula, so use the indicator directly.
+        return h <= 1 ? S0 : 0;
+      }
+      if (!(sigma > 0)) {
+        // Deterministic: S_t = S_0 · e^{μt}, integrand = S_t · 1{e^{μt} ≥ h}.
+        const St = S0 * Math.exp(mu * t);
+        return mu * t >= logh ? St : 0;
+      }
+      const d = (mu * t + 0.5 * sigma * sigma * t - logh) / (sigma * Math.sqrt(t));
+      return S0 * Math.exp(mu * t) * standardNormalCdf(d);
+    })();
+    const w = k === 0 || k === n ? 1 : k % 2 === 0 ? 2 : 4;
+    acc += w * integrand;
+  }
+  return (acc * dt) / 3;
+}

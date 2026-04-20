@@ -7,9 +7,17 @@
 
 import type { ClosedForm, McResult } from "./core/models.js";
 import { closedForm, partialDeskClosedForm, simulate } from "./core/models.js";
-import { expectedHittingTime, firstPassageProb } from "./core/moments.js";
+import {
+  expectedHittingTime,
+  expectedIntegralAboveBarrier,
+  expectedTimeAboveBarrier,
+  firstPassageProb,
+} from "./core/moments.js";
 import { simulateSwitching } from "./core/simulate-switching.js";
-import type { SwitchingResult } from "./core/simulate-switching.js";
+import type {
+  SwitchingResult,
+  SwitchMode,
+} from "./core/simulate-switching.js";
 import type { Params } from "./params.js";
 import {
   conditionalVaR,
@@ -81,16 +89,30 @@ export interface Report {
   /** Switching-variant block. Only present when `params.barrierRatio !== Infinity`;
    *  closed-form anchors populated only under pure GBM (lambdaJ = 0). */
   switching?: {
+    switchMode: SwitchMode;
     barrierRatio: number;
     barrierLevel: number;
     feePost: number;
+    /** P[path ever entered fee mode] = first-passage probability. Same Harrison
+     *  oracle under both modes. */
     probSwitch: { mc: number; closedForm: number | null; zScore: number | null };
-    expectedTau: { mc: number; closedForm: number | null; zScore: number | null };
-    /** Share of horizon operated in fee mode: E[(T − τ)/T]. */
+    /** E[first-passage time ∧ T] under one-way. Absent under two-way: the
+     *  book's b2b-occupation time is not a first-crossing time, so the
+     *  Harrison anchor does not apply to anything we currently sample. */
+    expectedCrossingTime?: { mc: number; closedForm: number | null; zScore: number | null };
+    /** E[time spent in fee mode]. Two-way CF via `expectedTimeAboveBarrier`;
+     *  one-way CF via `T − expectedHittingTime`. */
+    meanTimeInFee: { mc: number; closedForm: number | null; zScore: number | null };
+    /** E[I_fee]. Two-way CF via `expectedIntegralAboveBarrier`; one-way leaves
+     *  it null (no simple closed form for E[J_τ] under the latched indicator). */
+    meanIntegralFee: { mc: number; closedForm: number | null; zScore: number | null };
+    /** MC-only, both modes. Under one-way: 0 or 1. */
+    meanNCrossings: number;
+    /** Share of horizon spent in fee mode: meanTimeInFee.mc / T. */
     meanFracInFeeMode: number;
-    /** CVaR₉₅ of switching_op conditional on τ = T (paths that never switched). */
+    /** CVaR₉₅ of switching_op conditional on the path never entering fee mode. */
     cvar95GivenNoSwitch: number | null;
-    /** CVaR₉₅ of switching_op conditional on τ < T (paths that switched). */
+    /** CVaR₉₅ of switching_op conditional on the path entering fee mode at least once. */
     cvar95GivenSwitch: number | null;
   };
 }
@@ -185,6 +207,7 @@ export function buildReport(
     fee: params.f,
     barrierRatio: params.barrierRatio,
     feePost: params.feePost,
+    switchMode: params.switchMode,
     lambdaJ: params.lambdaJ,
     muJ: params.muJ,
     sigmaJ: params.sigmaJ,
@@ -345,57 +368,124 @@ function buildSwitchingBlock(
   run: SwitchingResult,
 ): NonNullable<Report["switching"]> {
   const nPaths = run.pnlSamples.length;
-  let switched = 0;
-  let tauSum = 0;
-  let fracFeeSum = 0;
+  let everCrossed = 0;
+  let tFeeSum = 0;
+  let tFeeSumSq = 0;
+  let IFeeSum = 0;
+  let IFeeSumSq = 0;
+  let crossingsSum = 0;
   for (let i = 0; i < nPaths; i++) {
-    switched += run.switchedMask[i] as number;
-    const tau = run.tauSamples[i] as number;
-    tauSum += tau;
-    fracFeeSum += (params.T - tau) / params.T;
+    everCrossed += run.everCrossedMask[i] as number;
+    const tFee = run.tFeeSamples[i] as number;
+    tFeeSum += tFee;
+    tFeeSumSq += tFee * tFee;
+    const IFee = run.IFeeSamples[i] as number;
+    IFeeSum += IFee;
+    IFeeSumSq += IFee * IFee;
+    crossingsSum += run.nCrossingsSamples[i] as number;
   }
-  const probSwitchMc = switched / nPaths;
-  const expectedTauMc = tauSum / nPaths;
-  const meanFracInFeeMode = fracFeeSum / nPaths;
+  const probSwitchMc = everCrossed / nPaths;
+  const meanTimeInFeeMc = tFeeSum / nPaths;
+  const meanIntegralFeeMc = IFeeSum / nPaths;
+  const meanFracInFeeMode = meanTimeInFeeMc / params.T;
+  const meanNCrossings = crossingsSum / nPaths;
 
-  // Closed-form anchors are Harrison/Borodin-Salminen formulas derived under
-  // pure GBM. Under Merton jumps the distribution of τ changes (jumps can
-  // punch through the barrier), so leave the anchor null and let the report
-  // call out "MC only" rather than compare against an inapplicable oracle.
+  // Under one-way, τ is the first-crossing time (equal to T on paths that
+  // never crossed). We reconstruct the one-way τ sample from tB2b, which
+  // equals τ on one-way runs. Under two-way, tB2b is the total time in b2b
+  // mode (not a stopping time); the reconstruction still gives the MC
+  // estimate of the first crossing time conditional on "first crossing" ≡
+  // "first step where S ≥ H", so expectedCrossingTime stays well-defined
+  // and comparable with the Harrison oracle. We recompute τ_i = min over
+  // the path of the step time at which Sprev ≥ H is first true; since that
+  // requires extra MC bookkeeping the cheap proxy is tB2b under one-way and
+  // "T if no crossing else some t ∈ [0, T]" under two-way — and the
+  // `everCrossedMask`-weighted average of tB2b on the subset {never crossed}
+  // is T by construction, so the closed-form anchor only applies under one-way.
+  const tauSamples: Float64Array | null =
+    run.switchMode === "one-way" ? run.tB2bSamples : null;
+  let expectedTauMc = 0;
+  let expectedTauSe = 0;
+  if (tauSamples !== null) {
+    let tauSum = 0;
+    for (let i = 0; i < nPaths; i++) tauSum += tauSamples[i] as number;
+    expectedTauMc = tauSum / nPaths;
+    let sse = 0;
+    for (let i = 0; i < nPaths; i++) {
+      const d = (tauSamples[i] as number) - expectedTauMc;
+      sse += d * d;
+    }
+    expectedTauSe = nPaths > 1 ? Math.sqrt(sse / (nPaths - 1) / nPaths) : 0;
+  }
+
+  // Closed-form anchors hold under pure GBM. Under Merton jumps the τ / I_fee
+  // distributions change (jumps can punch through the barrier), so leave
+  // those anchors null and let the report call out "MC only" rather than
+  // compare against an inapplicable oracle.
   const pureGbm = params.lambdaJ === 0;
   const probSwitchCf = pureGbm
     ? firstPassageProb(params.mu, params.sigma, params.T, params.barrierRatio)
     : null;
-  const expectedTauCf = pureGbm
+  const expectedTauCfOneWay = pureGbm
     ? expectedHittingTime(params.mu, params.sigma, params.T, params.barrierRatio)
     : null;
+  const expectedTauCf =
+    run.switchMode === "one-way" ? expectedTauCfOneWay : null;
 
-  // Stderr for a Bernoulli-count and a positive mean — the two anchors z-test
-  // on different scales but both use the sample-SD / √nPaths pattern.
+  // E[T_fee] closed form. Under two-way: ∫₀ᵀ Φ((νt − log h)/(σ√t)) dt.
+  // Under one-way: T − E[τ ∧ T].
+  const meanTimeInFeeCf = pureGbm
+    ? run.switchMode === "two-way"
+      ? expectedTimeAboveBarrier(
+          params.mu,
+          params.sigma,
+          params.T,
+          params.barrierRatio,
+        )
+      : expectedTauCfOneWay !== null
+        ? params.T - expectedTauCfOneWay
+        : null
+    : null;
+
+  // E[I_fee] closed form. Only available under two-way + pure GBM.
+  const meanIntegralFeeCf =
+    pureGbm && run.switchMode === "two-way"
+      ? expectedIntegralAboveBarrier(
+          params.S0,
+          params.mu,
+          params.sigma,
+          params.T,
+          params.barrierRatio,
+        )
+      : null;
+
   const pSe = Math.sqrt(
     Math.max(1e-12, probSwitchMc * (1 - probSwitchMc)) / nPaths,
   );
-  const tauSe = (() => {
-    let sse = 0;
-    for (let i = 0; i < nPaths; i++) {
-      const d = (run.tauSamples[i] as number) - expectedTauMc;
-      sse += d * d;
-    }
-    return nPaths > 1 ? Math.sqrt(sse / (nPaths - 1) / nPaths) : 0;
-  })();
-
   const probZ = probSwitchCf !== null && pSe > 0
     ? (probSwitchMc - probSwitchCf) / pSe
     : null;
-  const tauZ = expectedTauCf !== null && tauSe > 0
-    ? (expectedTauMc - expectedTauCf) / tauSe
+  const tauZ = expectedTauCf !== null && expectedTauSe > 0
+    ? (expectedTauMc - expectedTauCf) / expectedTauSe
+    : null;
+
+  const tFeeVar = Math.max(0, tFeeSumSq / nPaths - meanTimeInFeeMc * meanTimeInFeeMc);
+  const tFeeSe = Math.sqrt(tFeeVar / nPaths);
+  const tFeeZ = meanTimeInFeeCf !== null && tFeeSe > 0
+    ? (meanTimeInFeeMc - meanTimeInFeeCf) / tFeeSe
+    : null;
+
+  const IFeeVar = Math.max(0, IFeeSumSq / nPaths - meanIntegralFeeMc * meanIntegralFeeMc);
+  const IFeeSe = Math.sqrt(IFeeVar / nPaths);
+  const IFeeZ = meanIntegralFeeCf !== null && IFeeSe > 0
+    ? (meanIntegralFeeMc - meanIntegralFeeCf) / IFeeSe
     : null;
 
   const noSwitch: number[] = [];
   const withSwitch: number[] = [];
   for (let i = 0; i < nPaths; i++) {
     const v = run.pnlSamples[i] as number;
-    if (run.switchedMask[i]) withSwitch.push(v);
+    if (run.everCrossedMask[i]) withSwitch.push(v);
     else noSwitch.push(v);
   }
   const cvar95GivenNoSwitch =
@@ -404,11 +494,31 @@ function buildSwitchingBlock(
     withSwitch.length >= 20 ? conditionalVaR(withSwitch, 0.95) : null;
 
   return {
+    switchMode: run.switchMode,
     barrierRatio: params.barrierRatio,
     barrierLevel: run.barrierLevel,
     feePost: run.feePostResolved,
     probSwitch: { mc: probSwitchMc, closedForm: probSwitchCf, zScore: probZ },
-    expectedTau: { mc: expectedTauMc, closedForm: expectedTauCf, zScore: tauZ },
+    ...(tauSamples !== null
+      ? {
+          expectedCrossingTime: {
+            mc: expectedTauMc,
+            closedForm: expectedTauCf,
+            zScore: tauZ,
+          },
+        }
+      : {}),
+    meanTimeInFee: {
+      mc: meanTimeInFeeMc,
+      closedForm: meanTimeInFeeCf,
+      zScore: tFeeZ,
+    },
+    meanIntegralFee: {
+      mc: meanIntegralFeeMc,
+      closedForm: meanIntegralFeeCf,
+      zScore: IFeeZ,
+    },
+    meanNCrossings,
     meanFracInFeeMode,
     cvar95GivenNoSwitch,
     cvar95GivenSwitch,

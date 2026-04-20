@@ -79,9 +79,11 @@ below in stopping times.
 
 | Symbol | Meaning |
 | --- | --- |
-| $h \ge 1$ | Barrier multiple — switching book flips at $S_t = h \cdot S_0$ |
-| $\tau$ | Switching stopping time |
-| $f_{\mathrm{post}}$ | Fee rate applied after the switch fires |
+| $h \ge 1$ | Threshold multiple — switching book flips whenever $S_t$ crosses $h \cdot S_0$ |
+| $H := h \cdot S_0$ | Absolute threshold level |
+| $\mathsf{two}/\mathsf{one}$-way | Two-way: mode tracks $\mathbf{1}\{S_t \ge H\}$ symmetrically. One-way: the first upward crossing latches fee mode for the remainder of $[0, T]$. |
+| $\tau := \inf\{t : S_t \ge H\} \wedge T$ | First-passage time (defined under both modes; only drives the payoff under one-way) |
+| $f_{\mathrm{post}}$ | Fee rate applied whenever the book is in fee mode |
 
 *Jumps (compensated Merton overlay; details in §[Jumps](#compensated-merton-jump-diffusion)).*
 
@@ -464,61 +466,157 @@ The treasury and syndication *rescale* the loss tail. The switching
 variant is the first primitive that **truncates** it. The intuition:
 the b2b book's left tail is driven by paths on which $S_t$ rises
 materially above $S_0$. If the intermediary flips pricing from the
-fixed quote $Q$ to fee-book pricing at rate $f_{\mathrm{post}}$ the
-first time $S_t$ crosses an upper barrier $H = h S_0$, every
-post-barrier retirement earns the non-negative fee payoff and the
-loss tail is capped.
+fixed quote $Q$ to fee-book pricing at rate $f_{\mathrm{post}}$
+whenever $S_t$ sits above an upper threshold $H = h S_0$, every
+tonne retired while the spot is above $H$ earns the non-negative fee
+payoff and the loss tail is capped.
 
-Define the stopping time $\tau := \inf\{t \in [0, T] : S_t \ge H\}
-\wedge T$ (with $\tau = T$ when the barrier is never reached) and
-split the kernel,
+The cleanest formulation is a **state-dependent mode indicator**. At
+every instant the book is in exactly one of two modes, determined by
+whether the spot is above or below the threshold:
 
 $$
-I_\tau := \int_0^\tau S_t \, dt,
+M_t := \begin{cases}
+  \text{fee} & S_t \ge H, \\
+  \text{b2b} & S_t < H,
+\end{cases}
 \qquad
-J_\tau := \int_\tau^T S_t \, dt,
+\mathbf{1}^{\mathrm{fee}}_t := \mathbf{1}\{S_t \ge H\}.
+$$
+
+Split the kernel on that indicator,
+
+$$
+I_{\mathrm{b2b}} := \int_0^T (1 - \mathbf{1}^{\mathrm{fee}}_t) \, S_t \, dt,
 \qquad
-I_\tau + J_\tau = I_T.
+I_{\mathrm{fee}} := \int_0^T \mathbf{1}^{\mathrm{fee}}_t \, S_t \, dt,
+\qquad
+I_{\mathrm{b2b}} + I_{\mathrm{fee}} = I_T,
+$$
+
+and track the occupation time in the b2b mode,
+
+$$
+T_{\mathrm{b2b}} := \int_0^T (1 - \mathbf{1}^{\mathrm{fee}}_t) \, dt,
+\qquad
+T_{\mathrm{fee}} := T - T_{\mathrm{b2b}}.
 $$
 
 The switching operating book's P&L is
 
 $$
 \Pi_{\mathrm{sw}}
-  = Q \lambda \tau
-  - P \lambda I_\tau
-  + f_{\mathrm{post}} \, P \lambda J_\tau
-  \qquad \text{(b2b on $[0, \tau]$, fee book on $[\tau, T]$),}
+  = Q \lambda \, T_{\mathrm{b2b}}
+  - P \lambda \, I_{\mathrm{b2b}}
+  + f_{\mathrm{post}} \, P \lambda \, I_{\mathrm{fee}},
+  \qquad \Pi_{\mathrm{sw}}(0) = 0.
 $$
 
-starting at $\Pi_{\mathrm{sw}}(0) = 0$. $h \to \infty$ gives $\tau =
-T$ and recovers $\Pi_{\mathrm{b2b}}$; $h \le 1$ forces $\tau = 0$ and
-the entire horizon runs as a fee book at rate $f_{\mathrm{post}}$.
-The post-switch rate defaults to $f$ but is a free parameter.
+$h \to \infty$ gives $\mathbf{1}^{\mathrm{fee}}_t \equiv 0$ and
+recovers $\Pi_{\mathrm{b2b}}$; $h \le 1$ forces $\mathbf{1}^{\mathrm{fee}}_0
+= 1$ so the book starts in fee mode. The post-switch rate defaults
+to $f$ but is a free parameter.
 
-**No closed-form density.** $\tau$ is a stopping time, not a path
-integral, so $\Pi_{\mathrm{sw}}$ depends on the joint distribution of
-$(\tau, I_\tau, J_\tau)$ — which has a non-trivial copula. Monte
-Carlo is authoritative (see `src/core/simulate-switching.ts`).
+### Two-way vs. one-way
 
-**Pure-GBM closed-form anchors.** At $\lambda_J = 0$ the
-Brownian-motion-with-drift hitting-time distribution (Harrison 1985;
-Borodin-Salminen Table 3.0.1) gives
+The formulation above treats the mode as a pure state function of
+$S_t$, so the book flips **both** directions: fee mode whenever the
+spot is above $H$, b2b mode whenever it falls back below. This is the
+**two-way** variant — the default, and the only variant with a
+business interpretation that is symmetric in time. A reader's natural
+question ("what happens if the spot crosses back below $H$?") is
+answered directly by the indicator.
+
+The **one-way** variant is the monotone restriction that replaces
+$\mathbf{1}^{\mathrm{fee}}_t$ with $\mathbf{1}\{\tau \le t\}$, where
+$\tau := \inf\{t \in [0, T] : S_t \ge H\} \wedge T$ is the
+first-passage time to $H$. Under that substitution,
+$I_{\mathrm{b2b}} = I_\tau$, $I_{\mathrm{fee}} = J_\tau :=
+\int_\tau^T S_t \, dt$, $T_{\mathrm{b2b}} = \tau$, and the P&L reduces
+to the stopping-time expression
+
+$$
+\Pi_{\mathrm{sw}}^{\,\mathrm{one\text{-}way}}
+  = Q \lambda \tau - P \lambda I_\tau + f_{\mathrm{post}} \, P \lambda J_\tau,
+$$
+
+which is the legacy barrier-triggered form. The one-way book latches:
+once fee mode is entered it stays entered, regardless of subsequent
+price action. The two-way book un-latches whenever the spot dips back
+below $H$. Both variants coincide on the set of paths that cross $H$
+at most once — which under typical $(\mu, \sigma, T, h)$ is most of
+the paths.
+
+### Closed-form anchors
+
+$\mathbf{1}^{\mathrm{fee}}_t$ is a Markov indicator on the GBM
+trajectory, so the **mean-level** moments of $T_{\mathrm{fee}}$ and
+$I_{\mathrm{fee}}$ are tractable by Fubini. Under pure GBM with
+$\nu := \mu - \tfrac12 \sigma^2$ and using
+$\log S_t \sim \mathcal{N}(\log S_0 + \nu t, \sigma^2 t)$,
+
+$$
+\mathbb{P}[S_t \ge H]
+  = \Phi\!\left( \frac{\nu t - \log h}{\sigma \sqrt{t}} \right),
+$$
+
+and the lognormal partial-expectation identity $\mathbb{E}[e^X \cdot
+\mathbf{1}\{X \ge c\}] = e^{m + v^2/2} \cdot \Phi((m + v^2 - c)/v)$ at
+$(m, v^2) = (\nu t, \sigma^2 t)$, $c = \log h$, gives
+
+$$
+\mathbb{E}[S_t \cdot \mathbf{1}\{S_t \ge H\}]
+  = S_0 \, e^{\mu t}
+    \cdot \Phi\!\left(
+      \frac{\mu t + \tfrac12 \sigma^2 t - \log h}{\sigma \sqrt{t}}
+    \right).
+$$
+
+Integrating both over $[0, T]$,
+
+$$
+\mathbb{E}[T_{\mathrm{fee}}]
+  = \int_0^T \Phi\!\left( \frac{\nu t - \log h}{\sigma \sqrt{t}} \right) dt,
+$$
+
+$$
+\mathbb{E}[I_{\mathrm{fee}}]
+  = S_0 \int_0^T e^{\mu t} \cdot
+    \Phi\!\left(
+      \frac{\mu t + \tfrac12 \sigma^2 t - \log h}{\sigma \sqrt{t}}
+    \right) dt.
+$$
+
+Both are Simpson-quadrature-tractable and land in
+`src/core/moments.ts` as `expectedTimeAboveBarrier` and
+`expectedIntegralAboveBarrier`. The simulator z-tests its MC
+estimates against them on every run.
+
+The first-passage anchor is shared by both modes — it is the
+probability that the book *ever* enters fee mode on $[0, T]$, i.e.
+$\mathbb{P}[\tau \le T]$, which under pure GBM is (Harrison 1985;
+Borodin-Salminen Table 3.0.1)
 
 $$
 \mathbb{P}[\tau \le T]
   = \Phi\!\left(\frac{-\log h + \nu T}{\sigma \sqrt{T}}\right)
   + h^{2\nu / \sigma^2} \cdot
     \Phi\!\left(\frac{-\log h - \nu T}{\sigma \sqrt{T}}\right),
-\qquad \nu := \mu - \tfrac12 \sigma^2,
 $$
 
-with $\mathbb{E}[\tau \wedge T] = \int_0^T (1 - \mathbb{P}[\tau \le t])
-\, dt$ as a tractable quadrature. The switching simulator is
-regression-tested against these two scalars.
+with $\mathbb{E}[\tau \wedge T] = \int_0^T (1 - \mathbb{P}[\tau \le
+t]) \, dt$ as a tractable quadrature. Under one-way the latter equals
+$T - \mathbb{E}[T_{\mathrm{fee}}]$ exactly; under two-way the two
+anchors are independent measurements (the spot may spend time above
+$H$ after $\tau$ and also fall back below, so $T_{\mathrm{fee}}$ is
+*not* $T - \tau$).
 
-**Why a tail-truncation claim, not just a rescaling.** Partition
-paths by whether the barrier fired:
+No closed-form density exists for $\Pi_{\mathrm{sw}}$ under either
+mode — tail quantiles (VaR, CVaR) require Monte Carlo.
+
+### Why a tail-truncation claim, not just a rescaling
+
+Partition paths by whether they ever entered fee mode:
 
 $$
 \mathrm{CVaR}_{95}[\Pi_{\mathrm{sw}}]
@@ -526,25 +624,39 @@ $$
   \mathbb{P}[\tau = T] \cdot
     \mathrm{CVaR}_{95}^{\{\tau = T\}}[\Pi_{\mathrm{b2b}}]
   + \mathbb{P}[\tau < T] \cdot
-    \mathrm{CVaR}_{95}^{\{\tau < T\}}[\text{post-switch fee}].
+    \mathrm{CVaR}_{95}^{\{\tau < T\}}[\Pi_{\mathrm{sw}}].
 $$
 
-The second term is non-negative almost surely — the post-switch fee
-leg is revenue, bounded below by $0$. As $h \downarrow 1$ the first
-term's weight shrinks and the bound tightens. The simulator reports
-`CVaR95|no-switch` and `CVaR95|switched` separately so the truncation
-is visible on the instrument, not just in prose.
+On paths that never reach $H$, both variants coincide with
+$\Pi_{\mathrm{b2b}}$. On paths that do reach $H$, the fee-mode leg
+contributes non-negative revenue $f_{\mathrm{post}} \, P \lambda \,
+I_{\mathrm{fee}} \ge 0$. As $h \downarrow 1$ the first term's weight
+shrinks, the fee-mode leg's contribution grows, and the bound
+tightens. The simulator reports `CVaR95|no-switch` and
+`CVaR95|switched` separately so the truncation is visible on the
+instrument, not just in prose.
 
-**Operator decision surface.** Fix $(\mu, \sigma, f, f_{\mathrm{post}})$
-and sweep $h$. $\mathbb{E}[\Pi_{\mathrm{sw}}]$ and
-$\mathrm{CVaR}_{95}[\Pi_{\mathrm{sw}}]$ are monotone in $h$ in
-opposite directions: a tighter barrier lifts the mean (fee revenue
-replaces negative-skewed b2b exposure) and tightens the tail. The
-knee against the b2b reference is the operator's decision point.
-Optimal $h$ is a control-problem formulation (scope: Limitations).
-The eyeball-the-knee presentation is deliberate: matching means does
-not match distributions, and choosing a tail cap is a business
-decision, not a pricing optimum.
+**Two-way tempers the truncation with re-entry risk.** Paths that
+cross $H$ upward, earn fee revenue, then fall back below $H$ re-enter
+b2b mode and accumulate additional $-P \lambda I_{\mathrm{b2b}}$
+exposure. One-way locks in the fee-mode leg once entered, so its tail
+truncation is strictly more aggressive than two-way's at the same
+$h$; two-way tracks the spot's regime more faithfully but gives up
+some of the tail cap. The validation-page sweep plots both curves for
+eye comparison.
+
+### Operator decision surface
+
+Fix $(\mu, \sigma, f, f_{\mathrm{post}})$ and sweep $h$.
+$\mathbb{E}[\Pi_{\mathrm{sw}}]$ and $\mathrm{CVaR}_{95}[\Pi_{\mathrm{sw}}]$
+are monotone in $h$ in opposite directions under either mode: a
+tighter threshold lifts the mean (fee revenue replaces
+negative-skewed b2b exposure) and tightens the tail. The knee
+against the b2b reference is the operator's decision point. Optimal
+$h$ is a control-problem formulation (scope: Limitations). The
+eyeball-the-knee presentation is deliberate: matching means does not
+match distributions, and choosing a tail cap is a business decision,
+not a pricing optimum.
 
 ## Direct comparison {#direct-comparison}
 
@@ -553,12 +665,12 @@ GBM:
 
 | | Fee | B2b | Retained | Switching | Treasury $(k, C_{\mathrm{basis}})$ |
 | --- | --- | --- | --- | --- | --- |
-| $\mathbb{E}[\Pi]$ | $f P \lambda \mathbb{E}[I_T]$ | $Q N - P \lambda \mathbb{E}[I_T]$ | $(1 - \beta) \mathbb{E}[\Pi_{\mathrm{b2b}}] + \pi_{\mathrm{syn}}$ | MC only | $P \lambda \mathbb{E}[I_{\tau_{\mathrm{cov}}}] + k_{\mathrm{left}} S_0 e^{\mu T} - C_{\mathrm{basis}}$ |
+| $\mathbb{E}[\Pi]$ | $f P \lambda \mathbb{E}[I_T]$ | $Q N - P \lambda \mathbb{E}[I_T]$ | $(1 - \beta) \mathbb{E}[\Pi_{\mathrm{b2b}}] + \pi_{\mathrm{syn}}$ | MC only; mode-level anchors on $\mathbb{E}[T_{\mathrm{fee}}]$, $\mathbb{E}[I_{\mathrm{fee}}]$ | $P \lambda \mathbb{E}[I_{\tau_{\mathrm{cov}}}] + k_{\mathrm{left}} S_0 e^{\mu T} - C_{\mathrm{basis}}$ |
 | $\mathrm{Var}[\Pi]$ | $(f P \lambda)^2 \mathrm{Var}[I_T]$ | $(P \lambda)^2 \mathrm{Var}[I_T]$ | $(1 - \beta)^2 \mathrm{Var}[\Pi_{\mathrm{b2b}}]$ | MC only | branch on $k_{\mathrm{left}}$ (see §Treasury) |
-| kVCM exposure | long | short | short, scaled by $1 - \beta$ | short on $[0, \tau]$, long on $[\tau, T]$ | long on $[0, \tau_{\mathrm{cov}}]$ plus $S_T$ exposure on leftover |
-| Downside | bounded below by $0$ | unbounded | $(1 - \beta) \times$ b2b | bounded above on $\{\tau < T\}$ | $-C_{\mathrm{basis}}$ if $S \equiv 0$ |
+| kVCM exposure | long | short | short, scaled by $1 - \beta$ | short while $S_t < H$, long while $S_t \ge H$ (two-way); short on $[0, \tau]$, long on $[\tau, T]$ (one-way) | long on $[0, \tau_{\mathrm{cov}}]$ plus $S_T$ exposure on leftover |
+| Downside | bounded below by $0$ | unbounded | $(1 - \beta) \times$ b2b | partially truncated — non-negative on every fee-mode sub-interval | $-C_{\mathrm{basis}}$ if $S \equiv 0$ |
 | Capital | none | none | none | none | $C_{\mathrm{basis}}$ sunk |
-| Counterparty | none | none | $\beta \cdot \Pi_{\mathrm{b2b}}$ upside | same as retained on the switched leg | none |
+| Counterparty | none | none | $\beta \cdot \Pi_{\mathrm{b2b}}$ upside | same as retained on the fee-mode leg | none |
 
 Desk totals (operating + treasury at the strategy's $k$,
 $C_{\mathrm{basis}}$) are the row-wise sums.
@@ -662,7 +774,7 @@ anchor.
 | No historical calibration | Simulator — kVCM proxy (KLIMA, BCT, NCT) |
 | No discounting, gas, or on-chain slippage | Simulator — parameterised |
 | Passive treasury (no intraday rebalancing, over-hedge leftover marked at $S_T$) | Simulator — active consumption schedule is the baseline; dynamic delta hedge with perp/futures and tranched cessions pending |
-| Static-rate syndication and switching | Simulator — quota-share syndication at the b2b operating layer; barrier-triggered switching one-way and non-adaptive; two-way and adaptive / optimal-$h$ pending |
+| Static-rate syndication and switching | Simulator — quota-share syndication at the b2b operating layer; two-way threshold-triggered switching is the default with one-way as a selectable monotone restriction; adaptive / optimal-$h$ control pending |
 | No credit / counterparty layer | Not scoped (syndication treats cession as default-free; tranching remains out of scope — non-linear in $I_T$, breaks the Dufresne backbone) |
 
 This table is the authoritative scope statement; the Summary page
