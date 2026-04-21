@@ -48,7 +48,7 @@ export const defaultParams: Params = {
   S0: 0.0625,
   mu: -0.1,
   sigma: 0.25,
-  P: 2_000,
+  P: 1_400,
   lambda: 365,
   T: 1.0,
   f: 0.4,
