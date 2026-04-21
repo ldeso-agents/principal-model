@@ -218,7 +218,7 @@ nav#TOC > ul { font-size: 0.78rem; }
 }
 
 /* --- Collapsible sections ----------------------------------------------- */
-/* Four landing-page sections (Drawn path, Carbon price, P&L along the path,
+/* Four landing-page sections (Price path, Carbon price, P&L along the path,
    Terminal P&L) are authored as `::: {.collapsible-section}` fenced divs and
    rewritten to `<details class="collapsible-section">` at load time by the
    inline <script> near the end of index.qmd. The section's first heading
