@@ -26,31 +26,41 @@ the token cost, carrying no inventory and no price exposure) or a
 Once the principal book is open, the shape of its loss tail is a
 design choice. Derivations: [Model](model.qmd).
 
-The fee and back-to-back books share an integrand. Both are linear
-in $I_T = \int_0^T S_t \, dt$, and at the break-even quote
-$Q = Q^*$ they have equal expected P&L. The fee book enters with a
-positive sign (its revenue is non-negative), and the back-to-back
-book with a negative sign (its upside is capped at $Q N$ and its
-downside is unbounded). Equal moments are not equal distributions.
+The intermediary retires $\lambda$ tonnes per unit time over a
+horizon $T$, sourcing $P$ kVCM per tonne at spot $S_t$ (USD per
+kVCM); $N = \lambda T$ is the total tonnes retired and $\Pi$ any
+book's terminal P&L in USD. The fee and back-to-back books share an
+integrand: both are linear in the spot integral
+$I_T = \int_0^T S_t \, dt$, and at the break-even quote $Q = Q^*$
+(the fixed USD-per-tonne quote that equalises the two books'
+expected P&L $\mathbb{E}[\Pi]$) they match in expectation. The fee
+book enters with a positive sign (its revenue is non-negative), and
+the back-to-back book with a negative sign (upside capped at the
+total quote payout $Q N$, downside unbounded). Equal moments are
+not equal distributions.
 
-A fully matched treasury ($k = N P$ tokens pre-bought at basis
-$C_{\mathrm{basis}} = N P S_0$) cancels the $I_T$ term path by path,
-because treasury consumption contributes $+ P \lambda I_T$ against
-the back-to-back book's $- P \lambda I_T$. The desk collapses to
-$N(Q - P S_0)$, which is deterministic. Partial coverage
+A fully matched treasury ($k = N P$ kVCM pre-bought at total USD
+basis $C_{\mathrm{basis}} = N P S_0$, with $S_0$ the spot at
+inception) cancels the $I_T$ term path by path, because treasury
+consumption contributes $+ P \lambda I_T$ against the back-to-back
+book's $- P \lambda I_T$. The desk collapses to $N(Q - P S_0)$,
+which is deterministic. Partial coverage
 $\alpha = \min(1, k / (N P))$ leaves the uncovered tail
 $J_\alpha = \int_{\alpha T}^T S_t \, dt$. Quota-share syndication of
-the back-to-back book at cession $\beta$ scales variance by
-$(1 - \beta)^2$; at the actuarially fair premium ($\theta = 0$),
-$\mathbb{E}[\Pi_{\mathrm{ret}}]$ does not depend on $\beta$.
+the back-to-back book at cession fraction $\beta \in [0, 1]$ scales
+variance by $(1 - \beta)^2$; at the actuarially fair premium
+(counterparty risk load $\theta = 0$), the expected P&L of the
+retained book $\mathbb{E}[\Pi_{\mathrm{ret}}]$ does not depend on
+$\beta$.
 
-Switching to fee pricing whenever $S_t \ge H = h S_0$ caps every
-retirement done above the threshold at non-negative revenue. The
-switch is symmetric: re-entries below $H$ resume b2b exposure, so a
-volatile path near $H$ can cross it several times. At the defaults
-with $h = 1.25$, $\mathrm{CVaR}_{95}$ falls well below the b2b
-reference and $\mathbb{E}[\Pi]$ rises. Tightening $h$ cuts the tail
-harder but invites more re-entries. Symbols: [Setup and
+Switching to fee pricing whenever $S_t \ge H = h S_0$ (threshold
+multiple $h \ge 1$) caps every retirement done above the threshold
+at non-negative revenue. The switch is symmetric: re-entries below
+$H$ resume b2b exposure, so a volatile path near $H$ can cross it
+several times. At the defaults with $h = 1.25$, the 5 % tail-mean
+loss $\mathrm{CVaR}_{95}$ falls well below the b2b reference and
+$\mathbb{E}[\Pi]$ rises. Tightening $h$ cuts the tail harder but
+invites more re-entries. Full symbol table: [Setup and
 notation](model.qmd#setup).
 
 ---
@@ -65,13 +75,14 @@ recomputes against its Monte Carlo mean.
 ::: {.callout-note appearance="simple"}
 ## How the drawn curve enters the books
 
-The drawn curve defines a base path. Setting
-$\sigma^2_{\mathrm{noise}} > 0$ adds a log-normal shock (distinct
-from the GBM $\sigma$ that drives the comparison Monte Carlo),
+The drawn curve defines a base path. Setting the path-noise
+variance $\sigma^2_{\mathrm{noise}} > 0$ adds a log-normal shock
+around it, distinct from the GBM dynamics (drift $\mu$, diffusion
+$\sigma$, annualised) that drive the comparison Monte Carlo,
 seeded by the PRNG slider. A trapezoid rule over the realised path
 yields $I_T$, the uncovered tail $J_\alpha$, the switching split
-against $H = h S_0$, and $S_T$. These feed every book on the
-[Simulator](simulator.qmd).
+against $H = h S_0$, and the terminal spot $S_T$. These feed every
+book on the [Simulator](simulator.qmd).
 :::
 
 Buttons along the top load common shapes: a flat path at $S_0$, a
@@ -111,9 +122,10 @@ buildDate = {
 ::: {.side-panel-left .side-panel .pc-controls}
 ### Inputs
 
-Inventory, contract, horizon, and price-process parameters. Jumps are
-off by default ($\lambda_J = 0$); the [Simulator](simulator.qmd) page
-exposes wider ranges.
+Inventory, contract, horizon, and price-process parameters. Jumps
+(Merton overlay with intensity $\lambda_J$, mean log-jump $\mu_J$,
+log-jump SD $\sigma_J$) are off by default ($\lambda_J = 0$); the
+[Simulator](simulator.qmd) page exposes wider ranges.
 
 ### Price process
 
@@ -972,7 +984,8 @@ Plot.plot({
 
 _Orange: drawn, rescaled by $P$. Blue: noise-realised path.
 Grey: 20 GBM samples. Green dashed: $\alpha T$.
-Maroon dashed: $\pi_H = h S_0 P$ (fee mode above this line)._
+Maroon dashed: fee-mode threshold $\pi_H = h S_0 P$ in carbon-price
+units (fee mode above this line)._
 
 ### P&L along the path
 

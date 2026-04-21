@@ -24,7 +24,10 @@ dS_t = \mu S_t \, dt + \sigma S_t \, dW_t,
 $$
 
 with $\pi_t := P S_t$ the carbon price per tonne. Write $a \wedge b :=
-\min(a, b)$.
+\min(a, b)$. Throughout, $\Pi$ denotes a book's terminal P&L in USD
+over $[0, T]$, and $\mathbb{E}$, $\mathbb{P}$, $\mathrm{Var}$,
+$\mathrm{SD}$, $\mathrm{Cov}$ are taken under the GBM law above;
+$\mathbf{1}\{A\}$ is the indicator of event $A$.
 
 *Price process.*
 
@@ -488,7 +491,10 @@ risk measure is a control problem and is not addressed here.
 
 ## Side-by-side comparison {#comparison}
 
-Operating books plus treasury, pure GBM:
+Operating books plus treasury, pure GBM. Each column's $\Pi$ refers
+to that book's terminal P&L, in line with the earlier
+$\Pi_{\mathrm{b2b}}$, $\Pi_{\mathrm{ret}}$, $\Pi_{\mathrm{sw}}$,
+$\Pi_{\mathrm{trea}}$ ($R_{\mathrm{fee}}$ for the fee column).
 
 | | Fee | B2b | Retained | Switching | Treasury $(k, C_{\mathrm{basis}})$ |
 | --- | --- | --- | --- | --- | --- |
