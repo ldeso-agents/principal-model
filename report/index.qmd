@@ -66,7 +66,7 @@ The full symbol table sits in [Setup and notation](model.qmd#setup).
 
 ---
 
-## A drawn path
+## Specific scenarios
 
 The paragraphs above average over every GBM future. Specific
 scenarios, such as a mid-year crash or a historical replay, read
@@ -392,7 +392,7 @@ switchRun = {
 
 ::: {.collapsible-section}
 
-### Drawn path
+### Price path
 
 ```{ojs}
 //| echo: false
