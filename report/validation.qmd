@@ -106,7 +106,6 @@ $\Pi$ is the row book's terminal P&L in USD over $[0, T]$.
 ```{ojs}
 //| echo: false
 Inputs.table(run.rows, {
-  select: false,
   columns: ["name","closedFormMean","mcMean","mcCi95","closedFormSd","mcSd","zScore","var95","var99","cvar95","cvar99","probLoss","sharpe"],
   header: {
     name: "book",
@@ -182,7 +181,6 @@ deskRows = [
 ```{ojs}
 //| echo: false
 Inputs.table(deskRows, {
-  select: false,
   columns: ["name","closedFormMean","mcMean","mcCi95","closedFormSd","mcSd","zScore","var95","var99","cvar95","cvar99","probLoss","sharpe"],
   header: {
     name: "desk",
@@ -243,7 +241,6 @@ pure-GBM closed form.
 ```{ojs}
 //| echo: false
 Inputs.table(run.jumpCheck.rows, {
-  select: false,
   columns: ["name","gbmClosedMean","mertonMcMean","mertonMcCi95","gbmClosedSd","mertonMcSd","zVsGbmClosed"],
   header: {
     name: "book",
@@ -868,7 +865,6 @@ $\mathbb{E}[\tau \wedge T]$ shrinks as $n_{\mathrm{steps}}$ grows.
 Inputs.table(
   switchingRows.filter(r => isFinite(r.h)),
   {
-    select: false,
     columns: ["hLabel", "probSwitchMc", "probSwitchCf",
               "expectedTauMc", "expectedTauCf", "expectedTauZ",
               "meanTimeInFeeMc", "meanTimeInFeeCf", "meanTimeInFeeZ",
@@ -917,7 +913,6 @@ $\mathrm{sign}(S - H)$ flips on the discretised path.
 Inputs.table(
   switchingRows.filter(r => isFinite(r.h)),
   {
-    select: false,
     columns: ["hLabel", "meanFracInFeeMode", "meanNCrossings", "mean", "cvar95"],
     header: {
       hLabel: "h",
