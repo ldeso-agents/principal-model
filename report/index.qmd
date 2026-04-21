@@ -1116,7 +1116,6 @@ customRows = [
 ```{ojs}
 //| echo: false
 Inputs.table(customRows, {
-  select: false,
   columns: ["book", "pnl", "mcMean", "diff"],
   header: {
     book: "book",

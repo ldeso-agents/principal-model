@@ -159,6 +159,15 @@ nav#TOC > ul { font-size: 0.78rem; }
   }
 }
 
+/* --- Inputs.table row-selection checkbox column ------------------------- */
+/* Quarto bundles @observablehq/inputs ^0.10.4, which predates the
+   `select: false` option (added in v0.11.0, observablehq/inputs#262). The
+   table form is emitted with class `oi-<hash> oi-<hash>-table`, so we hide
+   the leading checkbox cell of every header and body row directly. */
+form[class*="-table"] table tr > :first-child {
+  display: none;
+}
+
 /* --- Simulator / Findings input panel (slider rows) --------------------- */
 
 .pc-controls form[class*="oi-"] { align-items: center; }
