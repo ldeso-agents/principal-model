@@ -8,12 +8,12 @@ format:
     toc-location: right
 ---
 
-Every slider move runs a fresh Monte Carlo. For symbols, see the
-[Model](model.qmd) page. The desk splits into zero-capital operating
-books (fee, b2b, retained, switching) plus an active treasury at
-$(k, C_{\mathrm{basis}})$; desk P&L is `operating + treasury`
-sample by sample. The price process is compensated Merton, with
-$\lambda_J = 0$ recovering pure GBM.
+An in-browser playground for the three dials. The desk splits into
+zero-capital operating books (fee, b2b, retained, switching) plus an
+active treasury at $(k, C_{\mathrm{basis}})$; desk P&L is
+`operating + treasury` sample by sample. The price process is a
+compensated Merton overlay on GBM, with $\lambda_J = 0$ recovering
+pure GBM. For symbols, see the [Model](model.qmd) page.
 
 ::: {.side-panel-left .side-panel .pc-controls}
 ### Price process
@@ -203,10 +203,11 @@ mcResetButton = {
 
 ## Derived values
 
-These are $S_0 = \pi_0 / P$, $T$ (years), $N = \lambda T$,
-$\alpha = \min(1, k / (N P))$, the inventory-exhaustion time
+The sidebar's raw inputs condense into the quantities that actually
+drive the books: $S_0 = \pi_0 / P$, $T$ (years), $N = \lambda T$,
+coverage $\alpha = \min(1, k / (N P))$, inventory-exhaustion time
 $\tau_{\mathrm{cov}} = \min(T, k / (P \lambda))$ (shown as "inventory
-runs out at" in days below), and
+runs out at" in days below), and the break-even quote
 $Q^* = (1 + f) P S_0 (e^{\mu T} - 1) / (\mu T)$.
 
 ```{ojs}
@@ -242,10 +243,11 @@ html`<div class="derived-stats">
 </div>`
 ```
 
-The implied basis per token is $C_{\mathrm{basis}} / k$. When it
-sits above $S_0$ the inventory carries an unrealised loss, below
-$S_0$ an unrealised gain; either way the shape of the custom book's
-P&L is unchanged and only its location moves.
+The implied basis per token is $C_{\mathrm{basis}} / k$: above $S_0$,
+the treasury opens at an unrealised loss; below, at an unrealised
+gain. Either way, sweeping $C_{\mathrm{basis}}$ only translates the
+custom-desk distribution along the $\Pi$ axis and leaves its shape
+intact.
 
 ```{ojs}
 //| echo: false
@@ -257,14 +259,16 @@ import {
 
 ## A single run
 
-The summary card, table, histograms, and sample paths below refresh
-on every slider change; a 5-10k-path run finishes in under a second.
-Under the [Merton compensation](model.qmd#jumps) the mean rule on
-the histogram holds its position while SD, VaR, and CVaR widen with
-the jump sliders. The "premium $\pi_{\mathrm{syn}}$ received" card
-reports the up-front syndication premium priced off the b2b book's
-moments; at $\theta = 0$ it is the actuarially fair
-$\beta \, \mathbb{E}[\Pi_{\mathrm{b2b}}]$.
+Every slider move runs a fresh Monte Carlo; a 5-10k-path run
+finishes in under a second. The cards below summarise that run:
+`premium π_syn received` is the up-front syndication cash flow
+priced off the b2b book's moments (at $\theta = 0$ it is the
+actuarially fair $\beta \, \mathbb{E}[\Pi_{\mathrm{b2b}}]$),
+`custom desk CVaR₉₅` is the custom desk's 5 % tail-mean loss, and
+`custom desk SD vs. b2b` is the variance reduction from the active
+treasury. Under the [Merton compensation](model.qmd#jumps) the
+histogram's mean rule below holds its position while SD, VaR, and
+CVaR widen with the jump sliders.
 
 ```{ojs}
 //| echo: false
@@ -347,8 +351,10 @@ html`<div class="derived-stats">
 ```
 
 Enable switching to activate the threshold $H = h S_0$. The cards
-below then show the first-passage probability, the mean time in fee
-mode, and the mean number of crossings per path.
+below then report the pure-GBM anchors sample-by-sample:
+`P[ever in fee]` is $\mathbb{P}[\tau \le T]$, `E[T_fee]` is the
+expected time in fee mode in days, and `E[# crossings]` counts
+$\mathrm{sign}(S - H)$ flips per path (largest when $h \approx 1$).
 
 ```{ojs}
 //| echo: false
@@ -369,7 +375,7 @@ html`${switchOn
 The table below has one row per operating book plus the treasury at
 $(k, C_{\mathrm{basis}})$ and the derived custom desk $= b2b +
 \text{treasury}$. Each row's $\Pi$ is that book's terminal P&L in
-USD over $[0, T]$.
+USD over $[0, T]$; divide by $N = \lambda T$ for a per-tonne figure.
 
 | column | meaning |
 | --- | --- |
@@ -381,16 +387,13 @@ USD over $[0, T]$.
 | $\mathbb{P}[\Pi < 0]$ | loss probability |
 | Sharpe | $\mathbb{E}[\Pi] / \mathrm{SD}[\Pi]$ (horizon-absolute) |
 
-P&L is the USD total over $[0, T]$; divide by $N = \lambda T$ for a
-per-tonne figure. As the sliders move, the treasury row opens at MTM
-$k \cdot S_0 - C_{\mathrm{basis}}$ and drifts as inventory burns
-down, so sweeping $C_{\mathrm{basis}}$ translates its location
-without changing its shape. The custom-desk row collapses to the
-matched limit at $k = N P$ and $C_{\mathrm{basis}} = N P S_0$, where
-$I_T$ cancels between `b2b` and `treasury` consumption and the desk
-total becomes the deterministic $N (Q - P S_0)$. At $k = 0$ the
-treasury is zero sample by sample and the custom desk collapses onto
-`b2b`.
+The two edge cases are worth watching. At $k = 0$ the treasury is
+zero sample by sample and the custom desk collapses onto `b2b`. At
+$(k, C_{\mathrm{basis}}) = (N P, N P S_0)$, $I_T$ cancels between
+`b2b` and treasury consumption and the custom desk collapses to the
+deterministic matched limit $N (Q - P S_0)$. Between them, sweeping
+$C_{\mathrm{basis}}$ only translates the treasury row's location
+without changing its shape.
 
 ```{ojs}
 //| echo: false
@@ -439,9 +442,11 @@ Inputs.table(summaryRows, {
 ### P&L distributions
 
 One panel per book, with terminal P&L on the x-axis. The black rule
-is the Monte Carlo mean, the dashed grey rule sits at $\Pi = 0$.
-Fee is non-negative and b2b is its mirror. The custom-desk panel
-collapses to a spike at the matched limit.
+is the Monte Carlo mean, the dashed grey rule sits at $\Pi = 0$, and
+the mass to its left is $\mathbb{P}[\Pi < 0]$. What you should see:
+fee non-negative, b2b its mirror about zero, retained a rescaled b2b,
+treasury roughly symmetric around its MTM; slide $k$ toward $N P$ and
+the custom-desk panel collapses to a spike at $N (Q - P S_0)$.
 
 ```{ojs}
 //| echo: false
@@ -502,9 +507,12 @@ _Black: MC mean. Dashed grey: $\Pi = 0$._
 
 ### Price paths
 
-Twenty sampled kVCM trajectories, with the first one highlighted.
-The green dashed rule marks $\alpha T$, where inventory runs out;
-the custom book's randomness lives on $[\alpha T, T]$.
+Twenty sampled kVCM trajectories, with the first highlighted in
+orange. The green dashed rule marks $\alpha T$, where inventory runs
+out; the custom desk's randomness lives entirely on $[\alpha T, T]$.
+When switching is enabled, the magenta rule at $H = h S_0$ marks the
+mode boundary — every crossing flips the switching book between b2b
+and fee.
 
 ```{ojs}
 //| echo: false

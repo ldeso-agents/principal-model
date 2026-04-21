@@ -4,12 +4,16 @@ A carbon-retirement intermediary buys kVCM tokens and burns them on
 behalf of clients. It can charge either a **fee** (a markup on the
 pass-through token cost, carrying no inventory and no price exposure)
 or a **principal** price (a fixed USD quote per tonne, set at
-inception). This note gives closed-form moments for both books, splits
-the principal book into a zero-capital operating leg and a
-balance-sheet treasury, and studies three ways to reshape the
-principal loss tail: pre-purchased inventory $(k, C_{\mathrm{basis}})$,
-syndication at fraction $\beta$, and switching to fee mode above a
-threshold $h$. The companion code checks every identity below.
+inception). The fee book has a non-negative revenue floor; the
+principal book has an unbounded loss tail. This note gives closed-form
+moments for both, splits the principal book into a zero-capital
+operating leg and a balance-sheet treasury, and studies three dials
+that reshape the principal loss tail: pre-purchased inventory
+$(k, C_{\mathrm{basis}})$, syndication at fraction $\beta$, and
+switching to fee mode above a threshold $h$. Every operating book
+collapses to the Dufresne integral $I_T = \int_0^T S_t \, dt$, so
+means and variances are closed form and tail quantiles come from
+Monte Carlo. The companion code checks every identity below.
 
 ## Setup and notation {#setup}
 
@@ -29,7 +33,8 @@ over $[0, T]$, and $\mathbb{E}$, $\mathbb{P}$, $\mathrm{Var}$,
 $\mathrm{SD}$, $\mathrm{Cov}$ are taken under the GBM law above;
 $\mathbf{1}\{A\}$ is the indicator of event $A$.
 
-*Price process.*
+The symbols below are split by role. *Price process* drives the only
+source of randomness.
 
 | Symbol | Meaning |
 | --- | --- |
@@ -41,7 +46,7 @@ $\mathbf{1}\{A\}$ is the indicator of event $A$.
 | $W_t$ | driving Brownian motion |
 | $\mathcal{F}_t$ | natural filtration |
 
-*Contract and demand.*
+*Contract and demand* fix the client-facing economics.
 
 | Symbol | Meaning |
 | --- | --- |
@@ -52,7 +57,8 @@ $\mathbf{1}\{A\}$ is the indicator of event $A$.
 | $f$ | fee rate |
 | $Q$ | fixed USD quote per tonne (principal) |
 
-*Treasury.*
+*Treasury* adds a balance-sheet leg that consumes its own kVCM before
+sourcing from spot.
 
 | Symbol | Meaning |
 | --- | --- |
@@ -61,7 +67,8 @@ $\mathbf{1}\{A\}$ is the indicator of event $A$.
 | $\alpha = \min(1, k / (N P))$ | coverage fraction |
 | $\tau_{\mathrm{cov}} = \min(T, k / (P \lambda))$ | inventory-exhaustion time |
 
-*Syndication.*
+*Syndication* cedes part of the principal operating book against an
+up-front premium.
 
 | Symbol | Meaning |
 | --- | --- |
@@ -69,7 +76,8 @@ $\mathbf{1}\{A\}$ is the indicator of event $A$.
 | $\theta \ge 0$ | counterparty risk load |
 | $\pi_{\mathrm{syn}}$ | up-front premium (USD) |
 
-*Switching.*
+*Switching* flips the operating book to fee mode whenever the spot
+crosses a threshold.
 
 | Symbol | Meaning |
 | --- | --- |
@@ -79,7 +87,9 @@ $\mathbf{1}\{A\}$ is the indicator of event $A$.
 | $\tau := \inf\{t : S_t \ge H\} \wedge T$ | first-passage time |
 | $f_{\mathrm{post}}$ | fee rate in fee mode |
 
-*Jumps (compensated Merton overlay, introduced in §[Adding jumps](#jumps)).*
+*Jumps* enter only through the compensated Merton overlay in
+§[Adding jumps](#jumps); they leave every mean-level identity intact
+and inflate every variance.
 
 | Symbol | Meaning |
 | --- | --- |
@@ -182,7 +192,8 @@ capped at $Q N$, downside is unbounded. The position is economically
 equivalent to shorting a continuous strip of forwards on kVCM struck
 at $Q / P$.
 
-By Itô,
+The sensitivity of remaining P&L to a move in $S_t$ reads off the
+same kernel: by Itô,
 
 $$
 \frac{\partial \, \mathbb{E}[\Pi_{\mathrm{b2b}} - \Pi_{\mathrm{b2b}}(t) \mid \mathcal{F}_t]}{\partial S_t}
@@ -192,8 +203,9 @@ $$
 
 The fee book satisfies the same identity with the sign reversed and
 magnitude $f P \lambda (T - t)$. The natural static hedge for the
-b2b book at time $t$ is $P \lambda (T - t)$ tokens of spot kVCM:
-exactly the treasury schedule at $k = N P$.
+b2b book at time $t$ is therefore $P \lambda (T - t)$ tokens of spot
+kVCM — exactly the treasury schedule at $k = N P$, which motivates
+the next section.
 
 ## The active treasury {#treasury-book}
 
@@ -491,10 +503,15 @@ risk measure is a control problem and is not addressed here.
 
 ## Side-by-side comparison {#comparison}
 
-Operating books plus treasury, pure GBM. Each column's $\Pi$ refers
-to that book's terminal P&L, in line with the earlier
-$\Pi_{\mathrm{b2b}}$, $\Pi_{\mathrm{ret}}$, $\Pi_{\mathrm{sw}}$,
-$\Pi_{\mathrm{trea}}$ ($R_{\mathrm{fee}}$ for the fee column).
+With the operating books and the treasury in hand, the table below
+collects their terminal moments, downside profile, and capital under
+pure GBM. Read each column as a single book's fingerprint: mean,
+variance, kVCM exposure, worst case, capital, counterparty hook. Desk
+totals are row-wise sums of an operating column and the treasury
+column. Each column's $\Pi$ refers to that book's terminal P&L, in
+line with the earlier $\Pi_{\mathrm{b2b}}$, $\Pi_{\mathrm{ret}}$,
+$\Pi_{\mathrm{sw}}$, $\Pi_{\mathrm{trea}}$ ($R_{\mathrm{fee}}$ for the
+fee column).
 
 | | Fee | B2b | Retained | Switching | Treasury $(k, C_{\mathrm{basis}})$ |
 | --- | --- | --- | --- | --- | --- |
@@ -504,8 +521,6 @@ $\Pi_{\mathrm{trea}}$ ($R_{\mathrm{fee}}$ for the fee column).
 | Downside | $\ge 0$ | unbounded | $(1 - \beta) \times$ b2b | truncated on fee-mode intervals | $-C_{\mathrm{basis}}$ if $S \equiv 0$ |
 | Capital | 0 | 0 | 0 | 0 | $C_{\mathrm{basis}}$ |
 | Counterparty | none | none | $\beta \Pi_{\mathrm{b2b}}$ upside | as retained on the fee leg | none |
-
-Desk totals are row-wise sums.
 
 Setting $\mathbb{E}[R_{\mathrm{fee}}] = \mathbb{E}[\Pi_{\mathrm{b2b}}]$
 solves for the break-even quote
@@ -555,6 +570,10 @@ as a GBM anchor and leaves jump-aware tails to Monte Carlo.
 `test/jump-gbm.test.ts` verifies both predictions.
 
 ## Baselines this note assumes {#baselines}
+
+Every identity above sits on a small pile of simplifications. The
+left column lists the simplification; the right column points to the
+simulator extension that lifts it.
 
 | Baseline | Lifted in |
 | --- | --- |

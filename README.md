@@ -1,11 +1,14 @@
 # principal-model
 
-`principal-model` simulates the books in
-[`research-note.md`](research-note.md), *Klima Protocol: Fee-Based
-vs. Principal Model*, and builds the accompanying Quarto report. The
-report has four pages: **Summary** (`index.qmd`), **Model**
-(`model.qmd`), **Validation** (`validation.qmd`), and **Simulator**
-(`simulator.qmd`).
+This repo holds the TypeScript simulator and the Quarto report that
+back [`research-note.md`](research-note.md), *Klima Protocol:
+Fee-Based vs. Principal Model*. It is aimed at anyone rebuilding the
+report or running fresh experiments against the note's identities.
+The report has four pages: **Summary** (`index.qmd`) for the
+high-level story, **Model** (`model.qmd`) for the derivations,
+**Validation** (`validation.qmd`) for closed-form vs Monte Carlo
+checks, and **Simulator** (`simulator.qmd`) for an in-browser
+playground.
 
 ## Getting started
 
@@ -31,6 +34,9 @@ the $Q^*(\mu, T)$ closed-form surface.
 
 ## Commands
 
+Flags passed to `npm run simulate` or `npm run sweep`; every override
+wins over the defaults in `src/params.ts`.
+
 | flag | meaning |
 | --- | --- |
 | `--seed N` | PRNG seed |
@@ -43,16 +49,29 @@ the $Q^*(\mu, T)$ closed-form surface.
 | `--h x` / `--fPost x` | threshold $h$, fee-mode rate ($h = \infty$ disables) |
 | `--sweep` | also emit `sweep.json` |
 
+A typical regeneration is `--seed N --sweep`, which pins the PRNG
+while refreshing both `run-<seed>.json` and `sweep.json` in one pass.
+
 ## Layout
+
+Roughly source → tests → report fixtures: `src/` holds the core
+library and CLI, `test/` the vitest suite that checks every closed
+form in the note, and `report/` the Quarto pages plus the JSON
+artifacts they read.
 
 ```
 src/
-  rng.ts                     Mulberry32 + Box-Muller + Knuth Poisson
-  moments.ts                 Dufresne moments of I_T
-  gbm.ts                     log-exact GBM + trapezoidal I_T + Merton overlay
-  risk.ts                    quantile, VaR, CVaR, shortfall
+  core/
+    rng.ts                   Mulberry32 + Box-Muller + Knuth Poisson
+    moments.ts               Dufresne moments of I_T and switching anchors
+    gbm.ts                   log-exact GBM + trapezoidal I_T + Merton overlay
+    risk.ts                  quantile, VaR, CVaR, shortfall
+    models.ts                closed form + MC for fee, b2b, retained, treasury
+    simulate-run.ts          one-shot Monte Carlo driver
+    simulate-switching.ts    switching-book Monte Carlo driver
+    ticks.ts                 shared axis-tick helpers
+    index.ts                 browser-facing barrel
   params.ts                  Params type and defaults
-  models.ts                  closed form + MC for fee, b2b, retained, treasury
   report.ts                  scorecard + break-even + histograms
   cli.ts                     entrypoint
   fetch-historical-price.ts  Alchemy Prices pull
@@ -62,6 +81,5 @@ report/
   model.qmd                  Model (includes research-note.md)
   validation.qmd             Validation
   simulator.qmd              Simulator
-  _glossary.qmd              shared glossary
   data/                      JSON artifacts
 ```
