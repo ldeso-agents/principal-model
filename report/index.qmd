@@ -120,8 +120,7 @@ buildDate = {
 ::: {.side-panel-left .side-panel .pc-controls}
 ### Inputs
 
-Inventory, contract, horizon, and price-process parameters. Ranges
-and defaults match the [Simulator](simulator.qmd) page.
+Inventory, contract, horizon, and price-process parameters.
 
 ### Price process
 
