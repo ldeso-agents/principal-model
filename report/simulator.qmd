@@ -202,7 +202,10 @@ mcResetButton = {
 ## Derived values
 
 These are $S_0 = \pi_0 / P$, $T$ (years), $N = \lambda T$,
-$\alpha = \min(1, k / (N P))$, and $Q^* = (1 + f) P S_0 (e^{\mu T} - 1) / (\mu T)$.
+$\alpha = \min(1, k / (N P))$, the inventory-exhaustion time
+$\tau_{\mathrm{cov}} = \min(T, k / (P \lambda))$ (shown as "inventory
+runs out at" in days below), and
+$Q^* = (1 + f) P S_0 (e^{\mu T} - 1) / (\mu T)$.
 
 ```{ojs}
 //| echo: false
@@ -256,7 +259,10 @@ The summary card, table, histograms, and sample paths below refresh
 on every slider change; a 5-10k-path run finishes in under a second.
 Under the [Merton compensation](model.qmd#jumps) the mean rule on
 the histogram holds its position while SD, VaR, and CVaR widen with
-the jump sliders.
+the jump sliders. The "premium $\pi_{\mathrm{syn}}$ received" card
+reports the up-front syndication premium priced off the b2b book's
+moments; at $\theta = 0$ it is the actuarially fair
+$\beta \, \mathbb{E}[\Pi_{\mathrm{b2b}}]$.
 
 ```{ojs}
 //| echo: false
@@ -360,7 +366,8 @@ html`${switchOn
 
 The table below has one row per operating book plus the treasury at
 $(k, C_{\mathrm{basis}})$ and the derived custom desk $= b2b +
-\text{treasury}$.
+\text{treasury}$. Each row's $\Pi$ is that book's terminal P&L in
+USD over $[0, T]$.
 
 | column | meaning |
 | --- | --- |

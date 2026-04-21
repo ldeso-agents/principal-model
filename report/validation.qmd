@@ -24,14 +24,18 @@ Each [Model](model.qmd) identity is z-tested against a Monte Carlo
 run. Regenerate with `npm run simulate -- --seed 42 && npm run sweep
 -- --seed 42`.
 
-Treat $|z| \le 2$ as sampling noise and $|z| > 3$ as suspect. Three
-identities are exact rather than statistical:
+The z-score $z = (\mathbb{E}_{\mathrm{mc}}[\Pi] -
+\mathbb{E}_{\mathrm{cf}}[\Pi]) / \mathrm{stderr}$ standardises the
+MC mean against its closed-form target; treat $|z| \le 2$ as
+sampling noise and $|z| > 3$ as suspect. Three identities are exact
+rather than statistical:
 $\mathrm{Var}[\Pi_{\mathrm{b2b}}] / \mathrm{Var}[R_{\mathrm{fee}}] =
 (P/f)^2$ is algebraic, $b2b + \mathrm{treasury}(N P, N P S_0) = N(Q
 - P S_0)$ holds path by path, and $\mathrm{SD}[\Pi_{\mathrm{ret}}] =
-(1 - \beta) \mathrm{SD}[\Pi_{\mathrm{b2b}}]$ is an identity. Symbol
-and risk-metric definitions: [Setup and notation](model.qmd#setup).
-The sections below draw from `data/run-42.json`.
+(1 - \beta) \mathrm{SD}[\Pi_{\mathrm{b2b}}]$ is an identity. Full
+symbol and risk-metric definitions: [Setup and
+notation](model.qmd#setup). The sections below draw from
+`data/run-42.json`.
 
 
 ```{ojs}
@@ -70,12 +74,16 @@ html`<div class="metric-grid">
 
 Each stochastic book gets a row. The switching row has no
 closed-form mean or SD (its density has no closed form), but its
-four mean-level anchors ($\mathbb{P}[\tau \le T]$,
-$\mathbb{E}[\tau \wedge T]$, $\mathbb{E}[T_{\mathrm{fee}}]$,
-$\mathbb{E}[I_{\mathrm{fee}}]$) appear in the pure-GBM table further
-down.
+four mean-level anchors (first-passage probability
+$\mathbb{P}[\tau \le T]$, expected first-passage time
+$\mathbb{E}[\tau \wedge T]$, expected time in fee mode
+$\mathbb{E}[T_{\mathrm{fee}}]$, and expected fee-mode spot integral
+$\mathbb{E}[I_{\mathrm{fee}}]$) appear in the pure-GBM table
+further down.
 
 <div class="legend-table">
+
+$\Pi$ is the row book's terminal P&L in USD over $[0, T]$.
 
 | column | meaning |
 | --- | --- |
@@ -484,9 +492,9 @@ Plot.plot({
 ## Syndication
 
 Formulae: [Syndicating the back-to-back book](model.qmd#syndication).
-At $\theta = 0$, $\Pi_{\mathrm{ret}}^{\mathrm{op}}$ is an affine
-rescaling of $\Pi_{\mathrm{b2b}}$ with slope $(1 - \beta)$, so the
-pricing is closed form and no extra Monte Carlo is needed. The
+At $\theta = 0$, $\Pi_{\mathrm{ret}}$ is an affine rescaling of
+$\Pi_{\mathrm{b2b}}$ with slope $(1 - \beta)$, so the pricing is
+closed form and no extra Monte Carlo is needed. The
 `cvar`-mode factor $\phi(\Phi^{-1}(0.95))/0.05 \approx 2.063$ puts
 the `sharpe` and `cvar` loads on a common SD scale.
 
