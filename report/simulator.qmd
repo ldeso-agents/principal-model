@@ -134,18 +134,12 @@ barrierRatio = switchOn ? barrierRatioSlider : Infinity
 
 ```{ojs}
 //| echo: false
-viewof feePostLocked = Inputs.toggle({ label: "lock f_post to f", value: true })
-```
-
-```{ojs}
-//| echo: false
 viewof feePostSlider = Inputs.range([0, 1], { step: 0.01, value: 0.4, label: "fee-mode rate f_post" })
 ```
 
 ```{ojs}
 //| echo: false
-// null ⇒ simulateSwitching uses inputs.fee.
-feePost = feePostLocked ? null : feePostSlider
+feePost = feePostSlider
 ```
 
 ### Monte Carlo
@@ -175,7 +169,7 @@ mcResetButton = {
     Tdays: 365, Q: 175, fee: 0.4,
     beta: 0, theta: 0, premiumMode: "sharpe",
     switchOn: false, barrierRatioSlider: 1.25,
-    feePostLocked: true, feePostSlider: 0.4,
+    feePostSlider: 0.4,
     nPaths: 5000, nSteps: 100, seed: 42,
   };
   const views = {
@@ -185,7 +179,7 @@ mcResetButton = {
     Tdays: viewof Tdays, Q: viewof Q, fee: viewof fee,
     beta: viewof beta, theta: viewof theta, premiumMode: viewof premiumMode,
     switchOn: viewof switchOn, barrierRatioSlider: viewof barrierRatioSlider,
-    feePostLocked: viewof feePostLocked, feePostSlider: viewof feePostSlider,
+    feePostSlider: viewof feePostSlider,
     nPaths: viewof nPaths, nSteps: viewof nSteps, seed: viewof seed,
   };
   const wrap = document.createElement("div");
@@ -361,7 +355,7 @@ mode, and the mean number of crossings per path.
 html`${switchOn
   ? `<div class="derived-stats">
     <div class="card"><div class="label">threshold h</div><div class="value">${barrierRatio.toFixed(2)} (H = $${(barrierRatio * derived.S0).toFixed(4)})</div></div>
-    <div class="card"><div class="label">f_post</div><div class="value">${(feePost ?? fee).toFixed(3)}${feePost === null ? " (locked to f)" : ""}</div></div>
+    <div class="card"><div class="label">f_post</div><div class="value">${feePost.toFixed(3)}</div></div>
     <div class="card"><div class="label">P[ever in fee]</div><div class="value">${(switchRun.probSwitch * 100).toFixed(1)}%</div></div>
     <div class="card"><div class="label">E[T_fee]</div><div class="value">${(switchRun.meanTimeInFee * 365 / derived.T).toFixed(1)} days</div></div>
     <div class="card"><div class="label">E[# crossings]</div><div class="value">${switchRun.meanNCrossings.toFixed(2)}</div></div>
