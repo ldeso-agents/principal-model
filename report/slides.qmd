@@ -1,0 +1,57 @@
+---
+title: "Klima Protocol: Fee vs. Principal"
+subtitle: "Three ways to price a carbon-retirement desk"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    incremental: false
+    embed-resources: true
+---
+
+## The fee-based model
+
+**Charge a markup on the token cost and pass the token through.**
+
+- No inventory, no balance sheet, no capital required.
+- Revenue is always positive — there is no loss tail.
+- Upside scales with token-price activity: healthy in rallies,
+  thin in quiet markets; never more than the markup.
+
+::: {.fragment .fade-in}
+*The safe baseline — zero downside, zero capital, zero leverage
+over pricing.*
+:::
+
+## The custom desk model
+
+**Quote a fixed USD price per tonne up-front and pre-buy part of
+the tokens in advance.**
+
+- The client price is locked; the desk absorbs the spot risk.
+- Pre-bought inventory hedges the early part of the contract;
+  the uncovered tail is still exposed if prices rise.
+- At full coverage the terminal P&L is deterministic —
+  predictable, but capital is locked up up-front.
+
+::: {.fragment .fade-in}
+*A dial between "fully hedged and deterministic" and "unhedged
+and exposed" — inventory size sets the risk appetite.*
+:::
+
+## The switching model
+
+**Quote a fixed price normally, but flip to fee-mode pricing
+whenever the token runs hot.**
+
+- Caps the loss on rally paths — the worst-case tail is
+  truncated.
+- Keeps principal-style margins on calm paths.
+- One dial (the threshold): tighter cuts the tail harder but
+  drags average revenue down; looser behaves more like plain
+  principal.
+
+::: {.fragment .fade-in}
+*A dynamic collar — harvest principal margins in calm markets
+and auto-downshift to fee when the market runs.*
+:::
