@@ -1,0 +1,308 @@
+---
+title: "Fee, custom desk, switching"
+subtitle: "Three ways to run a carbon-retirement book"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    embed-resources: true
+    center: false
+    transition: fade
+    width: 1280
+    height: 760
+---
+
+```{=html}
+<style>
+  .reveal section .msg {
+    display: inline-block;
+    padding: 0.35rem 0.8rem;
+    margin-bottom: 0.6rem;
+    background: #f3f7fb;
+    border-left: 3px solid #4c78a8;
+    font-size: 0.75em;
+    color: #234;
+    text-align: left;
+  }
+  .reveal section h2 { font-size: 1.6em; margin-bottom: 0.3em; }
+  .reveal section h3 { font-size: 1.1em; }
+  .reveal section p, .reveal section li { font-size: 0.78em; }
+  .model-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  .model-cards .card {
+    border: 1px solid #ccd; border-radius: 8px; padding: 0.9rem;
+    background: #fafcff; text-align: left;
+  }
+  .model-cards .card h3 { margin: 0 0 0.4rem; color: #234; }
+  .model-cards .card p { margin: 0.2rem 0; font-size: 0.72em; }
+  .model-cards .card .risk {
+    display: block; margin-top: 0.5rem; padding: 0.25rem 0.4rem;
+    border-radius: 4px; font-size: 0.66em; font-family: ui-monospace, monospace;
+  }
+  .risk.none { background: #e6f4ea; color: #1a5632; }
+  .risk.full { background: #fdecea; color: #8b1a10; }
+  .risk.capped { background: #fef3c7; color: #7a4a00; }
+  .assumptions, .next-steps { font-size: 0.78em; }
+  .footnote { font-size: 0.55em; color: #777; margin-top: 1.2em; }
+</style>
+```
+
+<!--
+  This deck consumes `report/data/run-42.json`. Generate it with
+      npm run simulate -- --seed 42 --h 1.25 --fPost 0.4
+  so the switching book is included (plain `npm run simulate` leaves it out).
+-->
+
+```{ojs}
+//| echo: false
+run = FileAttachment("data/run-42.json").json()
+```
+
+```{ojs}
+//| echo: false
+hasSwitch = run.switching != null && run.sampleTraces.switching != null
+```
+
+## Three models, one service {.center}
+
+<span class="msg">**Message.** Same client service (retire tonnes of carbon), three very different risk profiles for the desk.</span>
+
+::: {.model-cards}
+::: {.card}
+### Fee
+Pass-through cost plus a markup `f · π_t`.
+
+Desk never holds tokens; cost is recharged one-for-one to the client.
+
+<span class="risk none">no inventory · no spot risk · zero capital</span>
+:::
+
+::: {.card}
+### Custom desk
+Fixed quote `Q` per tonne, plus pre-purchased kVCM inventory.
+
+Coverage knob α tunes how much of the year is hedged by inventory.
+
+<span class="risk full">capital tied up · spot risk on the unhedged tail</span>
+:::
+
+::: {.card}
+### Switching
+Fixed quote `Q` by default; **flips to a fee** when kVCM spot rises above a threshold `H`.
+
+Caps the loss tail without pre-buying inventory.
+
+<span class="risk capped">no capital · tail truncated</span>
+:::
+:::
+
+::: {.footnote}
+Client always pays for the same retirement. What changes is who carries the kVCM price risk between quote and burn.
+:::
+
+## How we measure {.center}
+
+<span class="msg">**Message.** Run many possible kVCM futures, compare the whole P&L distribution — not just the average.</span>
+
+- **Price model.** kVCM spot `S_t` follows a geometric Brownian motion (drift μ, volatility σ). Monte Carlo over ~100k paths.
+- **Per-path P&L.** For each realised path, compute the desk's terminal P&L in USD under each rule.
+- **What we compare.**
+    - **E[Π]** — expected P&L (the average).
+    - **CVaR₉₅** — average loss in the worst 5 % of paths.
+    - **P[Π < 0]** — probability of losing money.
+
+Averages can match while tails diverge: at the break-even quote `Q*`, fee and custom desk have the **same E[Π]** but very different worst-case outcomes.
+
+## Many kVCM futures, one rule each {.center}
+
+<span class="msg">**Message.** All three books are fed by the *same* random price path — only the billing rule differs.</span>
+
+```{ojs}
+//| echo: false
+pricePathRecords = {
+  const rows = [];
+  const paths = run.sampledPaths;
+  const T = run.params.T;
+  const nS = run.params.nSteps;
+  for (let idx = 0; idx < paths.length; idx++) {
+    const path = paths[idx];
+    const series = idx === 0 ? "highlighted path" : "sampled paths";
+    for (let k = 0; k <= nS; k++) {
+      rows.push({ tDays: (k / nS) * T * 365, S: path[k], id: idx, series });
+    }
+  }
+  return rows;
+}
+```
+
+```{ojs}
+//| echo: false
+Plot.plot({
+  width: 1120, height: 500, marginLeft: 80, marginBottom: 50, grid: true,
+  x: { label: "t (days)", domain: [0, run.params.T * 365] },
+  y: { label: "kVCM spot S_t (USD)", zero: true },
+  color: {
+    legend: true,
+    domain: [
+      "sampled paths", "highlighted path",
+      ...(hasSwitch ? ["switching threshold H"] : []),
+      "treasury exhausts",
+    ],
+    range: [
+      "#888", "#c94",
+      ...(hasSwitch ? ["#a36"] : []),
+      "#2a7",
+    ],
+  },
+  marks: [
+    Plot.ruleY([0]),
+    Plot.line(pricePathRecords.filter(r => r.id !== 0),
+      { x: "tDays", y: "S", z: "id", stroke: "series", strokeOpacity: 0.35 }),
+    Plot.line(pricePathRecords.filter(r => r.id === 0),
+      { x: "tDays", y: "S", stroke: "series", strokeWidth: 2 }),
+    Plot.ruleX([{ t: run.params.alpha * run.params.T * 365, kind: "treasury exhausts" }],
+      { x: "t", stroke: "kind", strokeDasharray: "4 3", strokeWidth: 2 }),
+    ...(hasSwitch
+      ? [Plot.ruleY([{ y: run.switching.barrierLevel, kind: "switching threshold H" }],
+          { y: "y", stroke: "kind", strokeDasharray: "6 3", strokeWidth: 2 })]
+      : []),
+  ],
+})
+```
+
+::: {.footnote}
+Green dashed rule: moment the custom desk's pre-bought inventory runs out (spot risk from here onward). Purple dashed rule: switching threshold `H = h · S₀` — above it, the switching book charges a markup instead of a fixed quote.
+:::
+
+## P&L distributions {.center}
+
+<span class="msg">**Message.** Fee is safe but small · custom desk's upside comes with an unbounded left tail · switching keeps most of the upside and truncates the tail.</span>
+
+```{ojs}
+//| echo: false
+pnlRecords = {
+  const rows = [];
+  const fee = run.sampleTraces.fee;
+  const desk = run.sampleTraces.partialDesk;
+  const sw = hasSwitch ? run.sampleTraces.switching : null;
+  for (let i = 0; i < fee.length; i++) rows.push({ book: "fee", pnl: fee[i] });
+  for (let i = 0; i < desk.length; i++) rows.push({ book: "custom desk", pnl: desk[i] });
+  if (sw) for (let i = 0; i < sw.length; i++) rows.push({ book: "switching", pnl: sw[i] });
+  return rows;
+}
+```
+
+```{ojs}
+//| echo: false
+pnlMeans = {
+  const rows = [
+    { book: "fee", x: run.rows.find(r => r.name === "fee").mcMean },
+    { book: "custom desk", x: run.desks.partial.mcMean },
+  ];
+  if (hasSwitch) {
+    const swRow = run.rows.find(r => r.name === "switching");
+    if (swRow) rows.push({ book: "switching", x: swRow.mcMean });
+  }
+  return rows;
+}
+```
+
+```{ojs}
+//| echo: false
+Plot.plot({
+  width: 1120, height: 480, marginLeft: 90, marginBottom: 50, marginTop: 10,
+  grid: true,
+  x: { label: "terminal P&L (USD)", tickFormat: d => "$" + d.toLocaleString() },
+  y: { label: "share of paths" },
+  fy: { label: null, domain: ["fee", "custom desk", ...(hasSwitch ? ["switching"] : [])] },
+  color: {
+    legend: false,
+    domain: ["fee", "custom desk", "switching"],
+    range: ["#4c78a8", "#c94", "#a36"],
+  },
+  marks: [
+    Plot.ruleX([0], { stroke: "#888", strokeDasharray: "2 4" }),
+    Plot.rectY(pnlRecords, Plot.binX(
+      { y: "proportion" },
+      { x: "pnl", fill: "book", fy: "book", thresholds: 50 }
+    )),
+    Plot.ruleX(pnlMeans, { x: "x", fy: "book", stroke: "black", strokeWidth: 2 }),
+  ],
+})
+```
+
+::: {.footnote}
+Black rule: mean P&L. Dashed grey rule: break-even (Π = 0). Fee density never crosses 0. Custom desk has a long left tail. Switching clips the worst paths by charging a markup once spot exceeds the threshold.
+:::
+
+## Headline numbers {.center}
+
+<span class="msg">**Message.** Switching trades a small slice of expected P&L for a meaningfully smaller worst-case loss — and ties up no capital.</span>
+
+```{ojs}
+//| echo: false
+scoreRows = {
+  const rows = [];
+  const fee = run.rows.find(r => r.name === "fee");
+  rows.push({ book: "fee", mean: fee.mcMean, cvar95: fee.cvar95, probLoss: fee.probLoss });
+  const desk = run.desks.partial;
+  rows.push({ book: "custom desk", mean: desk.mcMean, cvar95: desk.cvar95, probLoss: desk.probLoss });
+  if (hasSwitch) {
+    const sw = run.rows.find(r => r.name === "switching");
+    if (sw) rows.push({ book: "switching", mean: sw.mcMean, cvar95: sw.cvar95, probLoss: sw.probLoss });
+  }
+  return rows;
+}
+```
+
+```{ojs}
+//| echo: false
+Inputs.table(scoreRows, {
+  columns: ["book", "mean", "cvar95", "probLoss"],
+  header: {
+    book: "book",
+    mean: "E[Π]  (average P&L, USD)",
+    cvar95: "CVaR₉₅  (avg loss in worst 5%, USD)",
+    probLoss: "P[loss]",
+  },
+  format: {
+    mean: x => (x >= 0 ? "$" : "−$") + Math.abs(x).toLocaleString(undefined, { maximumFractionDigits: 0 }),
+    cvar95: x => (x >= 0 ? "$" : "−$") + Math.abs(x).toLocaleString(undefined, { maximumFractionDigits: 0 }),
+    probLoss: x => (x * 100).toFixed(1) + "%",
+  },
+  width: { book: 180, mean: 240, cvar95: 260, probLoss: 120 },
+})
+```
+
+::: {.footnote}
+Figures read from the fixed Monte Carlo run stored at `report/data/run-42.json` (seed 42, defaults: μ = −10 %/yr, σ = 25 %, 1-year horizon, `Q = 175` USD/tonne, `f = 40 %`, `α = 50 %`, `h = 1.25`).
+:::
+
+## Assumptions {.center}
+
+<span class="msg">**Message.** These results hold **only** under a specific set of modelling choices. Change any of them, and numbers move.</span>
+
+::: {.assumptions}
+- **Fixed kVCM per tonne `P`** — protocol constant, not revalued inside a run.
+- **Constant retirement throughput `λ`** — deterministic demand (one tonne/day).
+- **Fixed pricing levers** — fee rate `f`, fixed quote `Q`, switching threshold `h`, coverage `α` are all set at inception and not re-tuned.
+- **Passive treasury** — inventory is pre-bought at `t = 0` and consumed as retirements happen. No dynamic hedging.
+- **Pure geometric Brownian motion** for the kVCM spot. No jumps, no regime changes, no mean reversion.
+- **One-year horizon**, no discounting, no gas / slippage, no counterparty default.
+:::
+
+## Next steps {.center}
+
+<span class="msg">**Message.** The most impactful extensions loosen the assumptions that most directly shape the tail.</span>
+
+::: {.next-steps}
+- **Variable kVCM per tonne `P`** — protocol re-parameterisation over the horizon.
+- **Stochastic retirement demand** — compound-Poisson arrivals instead of deterministic flow.
+- **Jumps & regime switches** in the kVCM spot (Merton overlay already wired in the simulator).
+- **Dynamic delta hedge** of the treasury leg (currently passive).
+- **Optimal switching threshold `h`** — today it is exogenous; frame as a control problem minimising CVaR₉₅ at an E[Π] floor.
+- **Historical calibration** — fit μ, σ, jump parameters to kVCM prices via `npm run fetch:prices`.
+:::
+
+::: {.footnote}
+Full derivations and interactive scorecards live on the companion Quarto pages: `index.qmd` (summary), `model.qmd` (derivations), `validation.qmd` (closed-form vs. MC), `simulator.qmd` (live sliders).
+:::
