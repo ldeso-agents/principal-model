@@ -200,10 +200,10 @@ form[class*="-table"] table tr > :first-child {
   flex: 1 1 auto;
 }
 
-/* Collapsible sidebar sections: the inline script at the bottom of each
-   page wraps each h3-delimited block in `<details class="pc-section">`.
-   Chevron sits in the h3's own gutter so the heading keeps its normal
-   typography. */
+/* Collapsible sidebar sections: each h3-delimited block is authored as
+   `<details class="pc-section" open>` with the heading inside `<summary>`,
+   so native HTML handles the toggle with no JS. Chevron sits in the h3's
+   own gutter so the heading keeps its normal typography. */
 .pc-controls details.pc-section {
   margin: 0;
 }
@@ -282,12 +282,11 @@ form[class*="-table"] table tr > :first-child {
 
 /* --- Collapsible sections ----------------------------------------------- */
 /* Four landing-page sections (Price path, Carbon price, P&L along the path,
-   Terminal P&L) are authored as `::: {.collapsible-section}` fenced divs and
-   rewritten to `<details class="collapsible-section">` at load time by the
-   inline <script> near the end of index.qmd. The section's first heading
-   becomes the <summary>, so clicking the heading toggles the whole section.
-   A chevron sits in the gutter to the left; the heading itself keeps its
-   normal h3 typography. */
+   Terminal P&L) are authored as `<details class="collapsible-section" open>`
+   with the heading inside `<summary>`, so native HTML handles the toggle
+   with no JS. Clicking the heading toggles the whole section. A chevron
+   sits in the gutter to the left; the heading itself keeps its normal
+   h3 typography. */
 
 details.collapsible-section {
   margin: 0;
