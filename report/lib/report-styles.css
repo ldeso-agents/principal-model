@@ -170,7 +170,16 @@ form[class*="-table"] table tr > :first-child {
 
 /* --- Simulator / Findings input panel (slider rows) --------------------- */
 
-.pc-controls form[class*="oi-"] { align-items: center; }
+/* Observable Inputs defaults the form to width: 240px; override so every
+   row stretches to the full sidebar, letting the range / select grow with
+   it. */
+.pc-controls form[class*="oi-"] {
+  align-items: center;
+  margin-block: 0.1rem;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
 .pc-controls form[class*="oi-"] > label {
   width: 7.5rem !important;
   min-width: 7.5rem !important;
@@ -180,12 +189,57 @@ form[class*="-table"] table tr > :first-child {
   font-size: 0.72rem;
   flex-shrink: 0;
 }
-.pc-controls form[class*="oi-"] { margin-block: 0.1rem; }
-.pc-controls form[class*="oi-"] input[type="number"],
-.pc-controls form[class*="oi-"] select { min-width: 4rem; }
+.pc-controls form[class*="oi-"] input[type="number"] { min-width: 4rem; }
+.pc-controls form[class*="oi-"] select {
+  min-width: 4rem;
+  flex: 1 1 auto;
+  max-width: 100%;
+}
 .pc-controls form[class*="oi-"] input[type="range"] {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+/* Collapsible sidebar sections: the inline script at the bottom of each
+   page wraps each h3-delimited block in `<details class="pc-section">`.
+   Chevron sits in the h3's own gutter so the heading keeps its normal
+   typography. */
+.pc-controls details.pc-section {
+  margin: 0;
+}
+.pc-controls details.pc-section > summary {
+  list-style: none;
+  cursor: pointer;
+  display: block;
+  position: relative;
+  padding-left: 0.9rem;
+}
+.pc-controls details.pc-section > summary::-webkit-details-marker {
+  display: none;
+}
+.pc-controls details.pc-section > summary > h3 {
+  display: inline-block;
+}
+.pc-controls details.pc-section:first-of-type > summary > h3 {
+  margin-top: 0;
+}
+.pc-controls details.pc-section > summary::before {
+  content: "▸";
+  position: absolute;
+  left: 0.1rem;
+  top: 0.65rem;
+  font-size: 0.7rem;
+  color: #888;
+  transition: transform 0.15s ease;
+}
+.pc-controls details.pc-section:first-of-type > summary::before {
+  top: 0.15rem;
+}
+.pc-controls details.pc-section[open] > summary::before {
+  transform: rotate(90deg);
+}
+.pc-controls details.pc-section > summary:hover::before {
+  color: #222;
 }
 
 .pc-reset {

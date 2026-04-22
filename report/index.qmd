@@ -1157,6 +1157,30 @@ zero.
     while (sec.firstChild) details.appendChild(sec.firstChild);
     sec.replaceWith(details);
   }
+  // Sidebar: group each h3 and its following siblings into a <details>
+  // so the user can collapse individual sections of the input panel.
+  for (const controls of document.querySelectorAll('.pc-controls')) {
+    const groups = [];
+    let current = null;
+    for (const el of Array.from(controls.children)) {
+      if (el.tagName === 'H3') {
+        current = { heading: el, body: [] };
+        groups.push(current);
+      } else if (current) {
+        current.body.push(el);
+      }
+    }
+    for (const g of groups) {
+      const details = document.createElement('details');
+      details.open = true;
+      details.className = 'pc-section';
+      const summary = document.createElement('summary');
+      summary.appendChild(g.heading);
+      details.appendChild(summary);
+      for (const b of g.body) details.appendChild(b);
+      controls.appendChild(details);
+    }
+  }
 })();
 </script>
 ```
